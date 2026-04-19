@@ -42,6 +42,12 @@ Start local web UI:
 make web
 ```
 
+Start Telegram bot and local web UI together:
+
+```bash
+make run-both
+```
+
 Run the example tool directly:
 
 ```bash

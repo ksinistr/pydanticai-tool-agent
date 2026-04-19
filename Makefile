@@ -1,4 +1,4 @@
-.PHONY: install format lint test telegram web tool-get-time
+.PHONY: install format lint test run-both telegram web tool-get-time
 
 UV_CACHE_DIR := .uv-cache
 
@@ -13,6 +13,9 @@ lint:
 
 test:
 	UV_CACHE_DIR=$(UV_CACHE_DIR) uv run pytest
+
+run-both:
+	UV_CACHE_DIR=$(UV_CACHE_DIR) uv run agent-all
 
 telegram:
 	UV_CACHE_DIR=$(UV_CACHE_DIR) uv run telegram-bot

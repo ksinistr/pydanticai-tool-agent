@@ -19,6 +19,7 @@ dependencies = [
 [project.scripts]
 telegram-bot = "app.bot.telegram_app:main"
 agent-web = "app.web.app:main"
+agent-all = "app.run_all:main"
 get-time-tool = "app.plugins.get_time.cli:main"
 intervals-icu-tool = "app.plugins.intervals_icu.cli:main"
 open-meteo-tool = "app.plugins.open_meteo.cli:main"
