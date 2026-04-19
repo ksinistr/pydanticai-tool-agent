@@ -10,6 +10,7 @@ Simple Telegram bot built with PydanticAI, OpenRouter, and a small plugin contra
 - Per-plugin CLI entrypoints for isolated testing
 - Example `get_time` tool plugin
 - Optional `intervals_icu` plugin for wellness, weekly load progress, and activities
+- Optional `open_meteo` plugin for geocoding and weather forecasts
 
 ## Setup
 
@@ -60,6 +61,8 @@ uv run intervals-icu-tool fitness-status
 uv run intervals-icu-tool wellness --date 2026-04-19
 uv run intervals-icu-tool weekly-load-progress
 uv run intervals-icu-tool activities --oldest 2026-04-01 --newest 2026-04-19 --limit 5
+uv run open-meteo-tool search --query "Limassol"
+uv run open-meteo-tool forecast --latitude 34.6841 --longitude 33.0379 --hours 12
 ```
 
 ## Extend With More Tools
@@ -69,7 +72,7 @@ Add a new package under `src/app/plugins/<tool_name>/`, implement a plugin class
 To enable the Intervals.icu plugin, set:
 
 ```bash
-APP_ENABLED_PLUGINS=get_time,intervals_icu
+APP_ENABLED_PLUGINS=get_time,intervals_icu,open_meteo
 INTERVALS_ICU_API_KEY=...
 INTERVALS_ICU_ATHLETE_ID=...
 ```

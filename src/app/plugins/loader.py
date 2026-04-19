@@ -6,6 +6,7 @@ from app.config import AppConfig
 from app.plugins.base import AgentPlugin
 from app.plugins.get_time.plugin import build_plugin as build_get_time_plugin
 from app.plugins.intervals_icu.plugin import build_plugin as build_intervals_icu_plugin
+from app.plugins.open_meteo.plugin import build_plugin as build_open_meteo_plugin
 
 PluginFactory = Callable[[AppConfig], AgentPlugin]
 
@@ -17,6 +18,7 @@ class UnknownPluginError(ValueError):
 PLUGIN_FACTORIES: dict[str, PluginFactory] = {
     "get_time": build_get_time_plugin,
     "intervals_icu": build_intervals_icu_plugin,
+    "open_meteo": build_open_meteo_plugin,
 }
 
 
