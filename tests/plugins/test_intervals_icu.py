@@ -68,6 +68,7 @@ def test_build_intervals_plugin_requires_credentials() -> None:
         openrouter_api_key="test-key",
         openrouter_model="openai/gpt-4.1-mini",
         telegram_bot_token=None,
+        telegram_authorized_users=(),
         enabled_plugins=("intervals_icu",),
         web_host="127.0.0.1",
         web_port=8000,

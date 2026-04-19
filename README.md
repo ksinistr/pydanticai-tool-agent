@@ -27,6 +27,7 @@ make install
 - `OPENROUTER_API_KEY`
 - `OPENROUTER_MODEL`
 - `TELEGRAM_BOT_TOKEN` for Telegram mode
+- `TELEGRAM_AUTHORIZED_USERS` as a comma-separated list of allowed Telegram usernames or numeric user IDs
 - `APP_PUBLIC_BASE_URL` if you want absolute clickable download links in web or Telegram replies
 - `INTERVALS_ICU_API_KEY` and `INTERVALS_ICU_ATHLETE_ID` if you enable the Intervals.icu plugin
 - `ROUTE_PLANNER_BROUTER_URL` if you enable the route planner plugin
@@ -100,6 +101,12 @@ If you want round-trip planning to avoid familiar roads using your Strava histor
 STRAVA_CLIENT_ID=...
 STRAVA_CLIENT_SECRET=...
 STRAVA_REDIRECT_URI=http://localhost/exchange_token
+```
+
+To restrict Telegram access to specific accounts, set for example:
+
+```bash
+TELEGRAM_AUTHORIZED_USERS=@alice,123456789
 ```
 
 For Proxmox LXC deployment with boot-time startup, see [deploy/lxc/README.md](/home/anasyrov/Documents/my_projects/1_active_only_one/PydanticAI/deploy/lxc/README.md).

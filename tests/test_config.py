@@ -15,6 +15,7 @@ def test_load_dotenv_reads_project_file(monkeypatch: pytest.MonkeyPatch, tmp_pat
                 "OPENROUTER_API_KEY=test-key",
                 'OPENROUTER_MODEL="openai/gpt-4.1-mini"',
                 "TELEGRAM_BOT_TOKEN=test-telegram-token",
+                "TELEGRAM_AUTHORIZED_USERS=@alice,123456789",
                 "APP_ENABLED_PLUGINS=get_time,extra",
                 "APP_WEB_HOST=0.0.0.0",
                 "APP_WEB_PORT=9000",
@@ -34,6 +35,7 @@ def test_load_dotenv_reads_project_file(monkeypatch: pytest.MonkeyPatch, tmp_pat
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     monkeypatch.delenv("OPENROUTER_MODEL", raising=False)
     monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
+    monkeypatch.delenv("TELEGRAM_AUTHORIZED_USERS", raising=False)
     monkeypatch.delenv("APP_ENABLED_PLUGINS", raising=False)
     monkeypatch.delenv("APP_WEB_HOST", raising=False)
     monkeypatch.delenv("APP_WEB_PORT", raising=False)
@@ -53,6 +55,7 @@ def test_load_dotenv_reads_project_file(monkeypatch: pytest.MonkeyPatch, tmp_pat
     assert config.openrouter_api_key == "test-key"
     assert config.openrouter_model == "openai/gpt-4.1-mini"
     assert config.telegram_bot_token == "test-telegram-token"
+    assert config.telegram_authorized_users == ("@alice", "123456789")
     assert config.enabled_plugins == ("get_time", "extra")
     assert config.web_host == "0.0.0.0"
     assert config.web_port == 9000

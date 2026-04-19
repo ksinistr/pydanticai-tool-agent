@@ -15,7 +15,7 @@ from app.plugins.loader import load_plugins
 def build_application(config: AppConfig) -> Application:
     agent = build_agent(config, load_plugins(config))
     service = AgentService(agent, InMemoryConversationStore())
-    handlers = TelegramHandlers(service)
+    handlers = TelegramHandlers(service, config.telegram_authorized_users)
 
     application = Application.builder().token(config.require_telegram_bot_token()).build()
     application.add_handler(CommandHandler("start", handlers.start))

@@ -44,6 +44,8 @@ install -m 600 deploy/lxc/pydanticai-tool-agent.env.example /etc/pydanticai-tool
 editor /etc/pydanticai-tool-agent/pydanticai-tool-agent.env
 ```
 
+If you want to restrict Telegram access, set `TELEGRAM_AUTHORIZED_USERS` in that env file with a comma-separated list of usernames or numeric Telegram user IDs.
+
 Install and enable the service:
 
 ```bash

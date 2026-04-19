@@ -10,6 +10,7 @@ class AppConfig:
     openrouter_api_key: str
     openrouter_model: str
     telegram_bot_token: str | None
+    telegram_authorized_users: tuple[str, ...]
     enabled_plugins: tuple[str, ...]
     web_host: str
     web_port: int
@@ -30,6 +31,7 @@ class AppConfig:
             openrouter_api_key=_require_env("OPENROUTER_API_KEY"),
             openrouter_model=os.getenv("OPENROUTER_MODEL", "openai/gpt-4.1-mini"),
             telegram_bot_token=_clean(os.getenv("TELEGRAM_BOT_TOKEN")),
+            telegram_authorized_users=_parse_csv(os.getenv("TELEGRAM_AUTHORIZED_USERS")),
             enabled_plugins=_parse_csv(os.getenv("APP_ENABLED_PLUGINS", "get_time")),
             web_host=os.getenv("APP_WEB_HOST", "127.0.0.1"),
             web_port=int(os.getenv("APP_WEB_PORT", "8000")),
