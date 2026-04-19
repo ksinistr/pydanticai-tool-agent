@@ -18,9 +18,15 @@ def test_load_dotenv_reads_project_file(monkeypatch: pytest.MonkeyPatch, tmp_pat
                 "APP_ENABLED_PLUGINS=get_time,extra",
                 "APP_WEB_HOST=0.0.0.0",
                 "APP_WEB_PORT=9000",
+                "APP_PUBLIC_BASE_URL=https://agent.example.test",
                 "INTERVALS_ICU_API_KEY=intervals-secret",
                 "INTERVALS_ICU_ATHLETE_ID=athlete-1",
                 "INTERVALS_ICU_BASE_URL=https://intervals.icu",
+                "ROUTE_PLANNER_BROUTER_URL=http://127.0.0.1:17777/brouter",
+                "STRAVA_CLIENT_ID=strava-client",
+                "STRAVA_CLIENT_SECRET=strava-secret",
+                "STRAVA_REDIRECT_URI=http://localhost/exchange_token",
+                f"STRAVA_DATA_DIR={tmp_path / 'strava'}",
             ]
         )
     )
@@ -31,9 +37,15 @@ def test_load_dotenv_reads_project_file(monkeypatch: pytest.MonkeyPatch, tmp_pat
     monkeypatch.delenv("APP_ENABLED_PLUGINS", raising=False)
     monkeypatch.delenv("APP_WEB_HOST", raising=False)
     monkeypatch.delenv("APP_WEB_PORT", raising=False)
+    monkeypatch.delenv("APP_PUBLIC_BASE_URL", raising=False)
     monkeypatch.delenv("INTERVALS_ICU_API_KEY", raising=False)
     monkeypatch.delenv("INTERVALS_ICU_ATHLETE_ID", raising=False)
     monkeypatch.delenv("INTERVALS_ICU_BASE_URL", raising=False)
+    monkeypatch.delenv("ROUTE_PLANNER_BROUTER_URL", raising=False)
+    monkeypatch.delenv("STRAVA_CLIENT_ID", raising=False)
+    monkeypatch.delenv("STRAVA_CLIENT_SECRET", raising=False)
+    monkeypatch.delenv("STRAVA_REDIRECT_URI", raising=False)
+    monkeypatch.delenv("STRAVA_DATA_DIR", raising=False)
 
     load_dotenv(env_file)
     config = AppConfig.from_env()
@@ -44,6 +56,12 @@ def test_load_dotenv_reads_project_file(monkeypatch: pytest.MonkeyPatch, tmp_pat
     assert config.enabled_plugins == ("get_time", "extra")
     assert config.web_host == "0.0.0.0"
     assert config.web_port == 9000
+    assert config.public_base_url == "https://agent.example.test"
     assert config.intervals_icu_api_key == "intervals-secret"
     assert config.intervals_icu_athlete_id == "athlete-1"
     assert config.intervals_icu_base_url == "https://intervals.icu"
+    assert config.route_planner_brouter_url == "http://127.0.0.1:17777/brouter"
+    assert config.strava_client_id == "strava-client"
+    assert config.strava_client_secret == "strava-secret"
+    assert config.strava_redirect_uri == "http://localhost/exchange_token"
+    assert config.strava_data_dir == tmp_path / "strava"

@@ -11,6 +11,7 @@ Simple Telegram bot built with PydanticAI, OpenRouter, and a small plugin contra
 - Example `get_time` tool plugin
 - Optional `intervals_icu` plugin for wellness, weekly load progress, and activities
 - Optional `open_meteo` plugin for geocoding and weather forecasts
+- Optional `route_planner` plugin for GPX route generation via BRouter
 
 ## Setup
 
@@ -26,7 +27,10 @@ make install
 - `OPENROUTER_API_KEY`
 - `OPENROUTER_MODEL`
 - `TELEGRAM_BOT_TOKEN` for Telegram mode
+- `APP_PUBLIC_BASE_URL` if you want absolute clickable download links in web or Telegram replies
 - `INTERVALS_ICU_API_KEY` and `INTERVALS_ICU_ATHLETE_ID` if you enable the Intervals.icu plugin
+- `ROUTE_PLANNER_BROUTER_URL` if you enable the route planner plugin
+- `STRAVA_CLIENT_ID` and `STRAVA_CLIENT_SECRET` if you want route planner to avoid known roads using Strava history
 
 ## Run
 
@@ -69,16 +73,33 @@ uv run intervals-icu-tool weekly-load-progress
 uv run intervals-icu-tool activities --oldest 2026-04-01 --newest 2026-04-19 --limit 5
 uv run open-meteo-tool search --query "Limassol"
 uv run open-meteo-tool forecast --latitude 34.6841 --longitude 33.0379 --hours 12
+uv run route-planner-tool point-to-point --start-location "Paphos, Cyprus" --end-location "Limassol, Cyprus" --profile gravel
+uv run route-planner-tool round-trip --start-location "Paphos, Cyprus" --max-total-km 60 --max-elevation-m 800 --profile gravel
+uv run route-planner-tool strava-auth-url
+uv run route-planner-tool strava-exchange --code-or-url "http://localhost/exchange_token?code=..."
+uv run route-planner-tool strava-sync
 ```
 
 ## Extend With More Tools
 
 Add a new package under `src/app/plugins/<tool_name>/`, implement a plugin class in `plugin.py`, and register it in `src/app/plugins/loader.py`.
 
-To enable the Intervals.icu plugin, set:
+To enable the Intervals.icu, Open-Meteo, and route planner plugins, set:
 
 ```bash
-APP_ENABLED_PLUGINS=get_time,intervals_icu,open_meteo
+APP_ENABLED_PLUGINS=get_time,intervals_icu,open_meteo,route_planner
+APP_PUBLIC_BASE_URL=https://agent.example.test
 INTERVALS_ICU_API_KEY=...
 INTERVALS_ICU_ATHLETE_ID=...
+ROUTE_PLANNER_BROUTER_URL=https://brouter.de/brouter
 ```
+
+If you want round-trip planning to avoid familiar roads using your Strava history, also set:
+
+```bash
+STRAVA_CLIENT_ID=...
+STRAVA_CLIENT_SECRET=...
+STRAVA_REDIRECT_URI=http://localhost/exchange_token
+```
+
+For Proxmox LXC deployment with boot-time startup, see [deploy/lxc/README.md](/home/anasyrov/Documents/my_projects/1_active_only_one/PydanticAI/deploy/lxc/README.md).

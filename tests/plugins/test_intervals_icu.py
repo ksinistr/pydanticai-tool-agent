@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import httpx
 import pytest
@@ -70,9 +71,15 @@ def test_build_intervals_plugin_requires_credentials() -> None:
         enabled_plugins=("intervals_icu",),
         web_host="127.0.0.1",
         web_port=8000,
+        public_base_url="https://agent.example.test",
         intervals_icu_api_key=None,
         intervals_icu_athlete_id=None,
         intervals_icu_base_url="https://intervals.icu",
+        route_planner_brouter_url="http://127.0.0.1:17777/brouter",
+        strava_client_id=None,
+        strava_client_secret=None,
+        strava_redirect_uri="http://localhost/exchange_token",
+        strava_data_dir=Path("/tmp/strava"),
     )
 
     with pytest.raises(ValueError, match="INTERVALS_ICU_ATHLETE_ID is required"):

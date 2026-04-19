@@ -23,6 +23,7 @@ agent-all = "app.run_all:main"
 get-time-tool = "app.plugins.get_time.cli:main"
 intervals-icu-tool = "app.plugins.intervals_icu.cli:main"
 open-meteo-tool = "app.plugins.open_meteo.cli:main"
+route-planner-tool = "app.plugins.route_planner.cli:main"
 
 [dependency-groups]
 dev = [

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from app.config import AppConfig
@@ -11,17 +13,23 @@ def test_load_plugins_returns_configured_plugins() -> None:
         openrouter_api_key="test-key",
         openrouter_model="openai/gpt-4.1-mini",
         telegram_bot_token=None,
-        enabled_plugins=("get_time", "open_meteo"),
+        enabled_plugins=("get_time", "open_meteo", "route_planner"),
         web_host="127.0.0.1",
         web_port=8000,
+        public_base_url="https://agent.example.test",
         intervals_icu_api_key=None,
         intervals_icu_athlete_id=None,
         intervals_icu_base_url="https://intervals.icu",
+        route_planner_brouter_url="http://127.0.0.1:17777/brouter",
+        strava_client_id=None,
+        strava_client_secret=None,
+        strava_redirect_uri="http://localhost/exchange_token",
+        strava_data_dir=Path("/tmp/strava"),
     )
 
     plugins = load_plugins(config)
 
-    assert [plugin.name for plugin in plugins] == ["get_time", "open_meteo"]
+    assert [plugin.name for plugin in plugins] == ["get_time", "open_meteo", "route_planner"]
 
 
 def test_load_plugins_raises_for_unknown_plugin() -> None:
@@ -32,9 +40,15 @@ def test_load_plugins_raises_for_unknown_plugin() -> None:
         enabled_plugins=("missing",),
         web_host="127.0.0.1",
         web_port=8000,
+        public_base_url="https://agent.example.test",
         intervals_icu_api_key=None,
         intervals_icu_athlete_id=None,
         intervals_icu_base_url="https://intervals.icu",
+        route_planner_brouter_url="http://127.0.0.1:17777/brouter",
+        strava_client_id=None,
+        strava_client_secret=None,
+        strava_redirect_uri="http://localhost/exchange_token",
+        strava_data_dir=Path("/tmp/strava"),
     )
 
     with pytest.raises(UnknownPluginError, match="Unknown plugin: missing"):

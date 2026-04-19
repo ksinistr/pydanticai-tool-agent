@@ -1,0 +1,19 @@
+[Unit]
+Description=PydanticAI Tool Agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pydanticai
+Group=pydanticai
+WorkingDirectory=/opt/pydanticai-tool-agent
+EnvironmentFile=/etc/pydanticai-tool-agent/pydanticai-tool-agent.env
+ExecStart=/opt/pydanticai-tool-agent/.venv/bin/agent-all
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+KillSignal=SIGTERM
+
+[Install]
+WantedBy=multi-user.target

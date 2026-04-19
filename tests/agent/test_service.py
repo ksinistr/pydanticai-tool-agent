@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
 
+from app.artifacts import artifact_store
 from app.agent.service import AgentService, InMemoryConversationStore
 
 
@@ -49,3 +51,18 @@ def test_agent_service_reset_clears_history() -> None:
 
     assert agent.calls[-1] == ("again", None)
 
+
+def test_agent_service_consumes_session_artifacts() -> None:
+    class ArtifactAgent(FakeAgent):
+        async def run(self, prompt: str, message_history: list[str] | None = None) -> FakeResult:
+            artifact_store.register_file(Path("/tmp/generated.gpx"), "generated.gpx")
+            return await super().run(prompt, message_history)
+
+    agent = ArtifactAgent()
+    service = AgentService(agent, InMemoryConversationStore())
+    asyncio.run(service.run("chat-1", "hello"))
+
+    consumed = service.consume_artifacts("chat-1")
+
+    assert len(consumed) == 1
+    assert consumed[0].filename == "generated.gpx"

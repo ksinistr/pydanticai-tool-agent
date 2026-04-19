@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 from telegram import Update
 from telegram.ext import ContextTypes
@@ -57,4 +58,9 @@ class TelegramHandlers:
             return
 
         await message.reply_text(reply)
-
+        for artifact in self._agent_service.consume_artifacts(str(chat.id)):
+            if not artifact.path.exists():
+                logger.warning("Generated artifact missing: %s", artifact.path)
+                continue
+            with Path(artifact.path).open("rb") as file_handle:
+                await message.reply_document(document=file_handle, filename=artifact.filename)

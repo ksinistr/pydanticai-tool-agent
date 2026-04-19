@@ -13,9 +13,15 @@ class AppConfig:
     enabled_plugins: tuple[str, ...]
     web_host: str
     web_port: int
+    public_base_url: str | None
     intervals_icu_api_key: str | None
     intervals_icu_athlete_id: str | None
     intervals_icu_base_url: str
+    route_planner_brouter_url: str
+    strava_client_id: str | None
+    strava_client_secret: str | None
+    strava_redirect_uri: str
+    strava_data_dir: Path
 
     @classmethod
     def from_env(cls) -> AppConfig:
@@ -27,9 +33,23 @@ class AppConfig:
             enabled_plugins=_parse_csv(os.getenv("APP_ENABLED_PLUGINS", "get_time")),
             web_host=os.getenv("APP_WEB_HOST", "127.0.0.1"),
             web_port=int(os.getenv("APP_WEB_PORT", "8000")),
+            public_base_url=_clean(os.getenv("APP_PUBLIC_BASE_URL")),
             intervals_icu_api_key=_clean(os.getenv("INTERVALS_ICU_API_KEY")),
             intervals_icu_athlete_id=_clean(os.getenv("INTERVALS_ICU_ATHLETE_ID")),
             intervals_icu_base_url=os.getenv("INTERVALS_ICU_BASE_URL", "https://intervals.icu"),
+            route_planner_brouter_url=os.getenv(
+                "ROUTE_PLANNER_BROUTER_URL",
+                "https://brouter.de/brouter",
+            ),
+            strava_client_id=_clean(os.getenv("STRAVA_CLIENT_ID")),
+            strava_client_secret=_clean(os.getenv("STRAVA_CLIENT_SECRET")),
+            strava_redirect_uri=os.getenv("STRAVA_REDIRECT_URI", "http://localhost/exchange_token"),
+            strava_data_dir=Path(
+                _clean(os.getenv("STRAVA_DATA_DIR"))
+                or str(
+                    Path.home() / ".local" / "share" / "pydanticai-tool-agent" / "strava"
+                )
+            ).expanduser(),
         )
 
     def require_telegram_bot_token(self) -> str:
