@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import random
 from dataclasses import dataclass, field
 from typing import Callable
 
@@ -24,6 +25,10 @@ SOFT_LIMIT_RATIO = 1.10
 SOFT_REPAIR_CORRIDOR_M = 45.0
 HARD_REPAIR_CORRIDOR_M = 75.0
 SOFT_REPAIR_WEIGHT = 4.0
+TARGET_MIN_RATIO = 0.70
+UNDER_DISTANCE_SCALE = 8.0
+DISTANCE_BONUS_WEIGHT = 2.0
+ELEVATION_PENALTY_WEIGHT = 5.0
 
 
 @dataclass
@@ -66,6 +71,7 @@ class RoundTripCandidate:
     overlap_total_m: float = 0.0
     overlap_max_run_m: float = 0.0
     distance_penalty: float = 0.0
+    under_distance_penalty: float = 0.0
     elevation_penalty: float = 0.0
     overlap_penalty: float = 0.0
     distance_bonus: float = 0.0
@@ -130,7 +136,8 @@ class RoundTripPipeline:
 
         radii_km = self._derive_radii(max_total_km)
         result.radii_km = radii_km
-        bearings_deg = [float(index * 30) for index in range(12)]
+        bearing_offset_deg = random.uniform(0, 30)
+        bearings_deg = [float(bearing_offset_deg + index * 30) for index in range(12)]
         global_nogo_polygons: list[BrouterPolygonNogo] = []
         if self._global_nogo_provider is not None:
             global_nogo_polygons = self._global_nogo_provider(result.start_coords, max_total_km, radii_km)
@@ -190,8 +197,8 @@ class RoundTripPipeline:
         base_bearing_deg: float,
     ) -> RoundTripSeed:
         start_lat, start_lon = start_coords
-        control_bearing_1 = self._normalize_bearing(base_bearing_deg - 50)
-        control_bearing_2 = self._normalize_bearing(base_bearing_deg + 50)
+        control_bearing_1 = self._normalize_bearing(base_bearing_deg - 15)
+        control_bearing_2 = self._normalize_bearing(base_bearing_deg + 15)
         control_point_1 = destination_point(start_lat, start_lon, radius_km, control_bearing_1)
         control_point_2 = destination_point(start_lat, start_lon, radius_km, control_bearing_2)
         return RoundTripSeed(
@@ -425,13 +432,16 @@ class RoundTripPipeline:
 
     def _score_candidate(self, candidate: RoundTripCandidate, max_total_km: float, max_elevation_m: float | None) -> None:
         candidate.distance_penalty = self._limit_penalty(candidate.distance_km, max_total_km)
-        candidate.elevation_penalty = self._limit_penalty(candidate.ascent_m, max_elevation_m)
+        candidate.under_distance_penalty = self._calc_under_distance_penalty(candidate.distance_km, max_total_km)
+        candidate.elevation_penalty = self._elevation_penalty(candidate.ascent_m, max_elevation_m)
         candidate.overlap_penalty = self._overlap_penalty(candidate)
         candidate.distance_bonus = self._distance_bonus(candidate.distance_km, max_total_km)
+        weighted_elevation_penalty = candidate.elevation_penalty * ELEVATION_PENALTY_WEIGHT
         candidate.total_score = (
             candidate.overlap_penalty
             + candidate.distance_penalty
-            + candidate.elevation_penalty
+            + candidate.under_distance_penalty
+            + weighted_elevation_penalty
             - candidate.distance_bonus
         )
 
@@ -444,13 +454,30 @@ class RoundTripPipeline:
         hard_excess_ratio = ratio - SOFT_LIMIT_RATIO
         return 1.0 + (hard_excess_ratio * 20.0) ** 2
 
+    def _calc_under_distance_penalty(self, distance_km: float, max_total_km: float) -> float:
+        if max_total_km <= 0:
+            return 0.0
+        ratio = distance_km / max_total_km
+        if ratio >= TARGET_MIN_RATIO:
+            return 0.0
+        deficit = TARGET_MIN_RATIO - ratio
+        return (deficit * UNDER_DISTANCE_SCALE) ** 2
+
+    def _elevation_penalty(self, ascent_m: float, max_elevation_m: float | None) -> float:
+        if max_elevation_m in (None, 0):
+            return 0.0
+        if ascent_m <= max_elevation_m:
+            return 0.0
+        excess_ratio = ascent_m / max_elevation_m - 1.0
+        return (excess_ratio * 10.0) ** 2
+
     def _overlap_penalty(self, candidate: RoundTripCandidate) -> float:
         return candidate.overlap_max_run_m / TARGET_OVERLAP_RUN_M + candidate.overlap_total_m / (TARGET_OVERLAP_TOTAL_M * 2.0)
 
     def _distance_bonus(self, distance_km: float, max_total_km: float) -> float:
         if max_total_km <= 0 or distance_km > max_total_km:
             return 0.0
-        return min(distance_km / max_total_km, 1.0) * 0.25
+        return min(distance_km / max_total_km, 1.0) * DISTANCE_BONUS_WEIGHT
 
     def _needs_repair(self, candidate: RoundTripCandidate) -> bool:
         return candidate.overlap_max_run_m > TARGET_OVERLAP_RUN_M or candidate.overlap_total_m > TARGET_OVERLAP_TOTAL_M

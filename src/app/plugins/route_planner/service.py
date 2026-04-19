@@ -5,7 +5,7 @@ from pathlib import Path
 
 from app.artifacts import artifact_store
 from app.plugins.route_planner.models import PointToPointRouteRequest, RoundTripRouteRequest
-from app.plugins.route_planner.round_trip import RoundTripPipeline
+from app.plugins.route_planner.round_trip import ELEVATION_PENALTY_WEIGHT, RoundTripPipeline
 from app.plugins.route_planner.routing import RoutePlannerClient
 from app.plugins.route_planner.strava import StravaService
 from app.plugins.route_planner.strava_nogo import build_round_trip_strava_nogos
@@ -109,6 +109,16 @@ class RoutePlannerService:
                         "distance_km": round(candidate.distance_km, 2),
                         "ascent_m": round(candidate.ascent_m, 2),
                         "score": round(candidate.total_score, 2),
+                        "scoring": {
+                            "overlap_penalty": round(candidate.overlap_penalty, 2),
+                            "overlap_max_run_m": round(candidate.overlap_max_run_m, 1),
+                            "overlap_total_m": round(candidate.overlap_total_m, 1),
+                            "distance_penalty": round(candidate.distance_penalty, 2),
+                            "under_distance_penalty": round(candidate.under_distance_penalty, 2),
+                            "elevation_penalty": round(candidate.elevation_penalty, 2),
+                            "weighted_elevation_penalty": round(candidate.elevation_penalty * ELEVATION_PENALTY_WEIGHT, 2),
+                            "distance_bonus": round(candidate.distance_bonus, 2),
+                        },
                         "gpx": self._gpx_attachment(candidate.gpx_filepath, candidate.gpx_filename),
                     }
                 )
