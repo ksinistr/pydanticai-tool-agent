@@ -68,6 +68,8 @@ def test_build_intervals_plugin_requires_credentials() -> None:
         openai_api_key="test-key",
         openai_base_url="https://provider.example.test/v1",
         openai_model="gpt-4.1-mini",
+        openai_temperature=None,
+        openai_top_p=None,
         telegram_bot_token=None,
         telegram_authorized_users=(),
         enabled_plugins=("intervals_icu",),

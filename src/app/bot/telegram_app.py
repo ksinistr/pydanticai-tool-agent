@@ -6,7 +6,7 @@ from telegram.error import NetworkError
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
 
 from app.agent.factory import build_agent
-from app.agent.service import AgentService, InMemoryConversationStore
+from app.agent.service import AgentService, CurrentDayConversationStore
 from app.bot.handlers import TelegramHandlers
 from app.config import AppConfig
 from app.plugins.loader import load_plugins
@@ -14,7 +14,7 @@ from app.plugins.loader import load_plugins
 
 def build_application(config: AppConfig) -> Application:
     agent = build_agent(config, load_plugins(config))
-    service = AgentService(agent, InMemoryConversationStore())
+    service = AgentService(agent, CurrentDayConversationStore())
     handlers = TelegramHandlers(service, config.telegram_authorized_users)
 
     application = Application.builder().token(config.require_telegram_bot_token()).build()

@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import date
 from pathlib import Path
 
 from app.artifacts import artifact_store
-from app.agent.service import AgentService, InMemoryConversationStore
+from app.agent.service import AgentService, CurrentDayConversationStore, InMemoryConversationStore
 
 
 class FakeResult:
@@ -50,6 +51,25 @@ def test_agent_service_reset_clears_history() -> None:
     asyncio.run(service.run("chat-1", "again"))
 
     assert agent.calls[-1] == ("again", None)
+
+
+def test_current_day_conversation_store_expires_history_across_days() -> None:
+    agent = FakeAgent()
+    current_day = date(2026, 4, 20)
+
+    def today() -> date:
+        return current_day
+
+    service = AgentService(agent, CurrentDayConversationStore(today=today))
+
+    asyncio.run(service.run("chat-1", "hello"))
+    current_day = date(2026, 4, 21)
+    asyncio.run(service.run("chat-1", "again"))
+
+    assert agent.calls == [
+        ("hello", None),
+        ("again", None),
+    ]
 
 
 def test_agent_service_consumes_session_artifacts() -> None:
