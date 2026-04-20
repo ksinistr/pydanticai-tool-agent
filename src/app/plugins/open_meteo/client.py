@@ -8,6 +8,7 @@ FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 HOURLY_VARIABLES = (
     "temperature_2m",
     "apparent_temperature",
+    "precipitation_probability",
     "precipitation",
     "snowfall",
     "cloud_cover",

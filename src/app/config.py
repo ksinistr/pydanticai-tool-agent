@@ -26,6 +26,10 @@ class AppConfig:
     strava_client_secret: str | None
     strava_redirect_uri: str
     strava_data_dir: Path
+    morning_report_latitude: float | None = None
+    morning_report_longitude: float | None = None
+    morning_report_timezone: str | None = None
+    morning_report_language: str | None = None
 
     @classmethod
     def from_env(cls) -> AppConfig:
@@ -58,6 +62,12 @@ class AppConfig:
                     Path.home() / ".local" / "share" / "pydanticai-tool-agent" / "strava"
                 )
             ).expanduser(),
+            morning_report_latitude=_parse_optional_float(os.getenv("MORNING_REPORT_LATITUDE")),
+            morning_report_longitude=_parse_optional_float(
+                os.getenv("MORNING_REPORT_LONGITUDE")
+            ),
+            morning_report_timezone=_clean(os.getenv("MORNING_REPORT_TIMEZONE")),
+            morning_report_language=_clean(os.getenv("MORNING_REPORT_LANGUAGE")),
         )
 
     def require_telegram_bot_token(self) -> str:
@@ -74,6 +84,18 @@ class AppConfig:
         if self.intervals_icu_athlete_id:
             return self.intervals_icu_athlete_id
         raise ValueError("INTERVALS_ICU_ATHLETE_ID is required to use the Intervals.icu plugin.")
+
+    def missing_morning_report_settings(self) -> tuple[str, ...]:
+        missing: list[str] = []
+        if self.morning_report_latitude is None:
+            missing.append("MORNING_REPORT_LATITUDE")
+        if self.morning_report_longitude is None:
+            missing.append("MORNING_REPORT_LONGITUDE")
+        if self.morning_report_timezone is None:
+            missing.append("MORNING_REPORT_TIMEZONE")
+        if self.morning_report_language is None:
+            missing.append("MORNING_REPORT_LANGUAGE")
+        return tuple(missing)
 
 
 def load_dotenv(path: Path | None = None) -> None:

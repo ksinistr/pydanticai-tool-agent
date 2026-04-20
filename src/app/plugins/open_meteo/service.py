@@ -75,6 +75,9 @@ def _build_hourly_items(payload: dict) -> list[dict]:
                     "time": time_value,
                     "temp": _series_value(payload, "temperature_2m", index),
                     "feels_like": _series_value(payload, "apparent_temperature", index),
+                    "precipitation_probability": _series_value(
+                        payload, "precipitation_probability", index
+                    ),
                     "wind_speed": _series_value(payload, "wind_speed_10m", index),
                     "wind_gust": _series_value(payload, "wind_gusts_10m", index),
                     "wind_deg": _series_value(payload, "wind_direction_10m", index),

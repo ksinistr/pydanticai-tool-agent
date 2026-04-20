@@ -45,3 +45,53 @@ def test_handle_text_allows_authorized_user_id() -> None:
     service.run.assert_awaited_once_with("42", "hello")
     message.reply_text.assert_awaited_once_with("ok")
     message.reply_document.assert_awaited_once()
+
+
+def test_help_lists_morning_report_command() -> None:
+    service = SimpleNamespace(run=AsyncMock(), consume_artifacts=lambda session_id: [])
+    handlers = TelegramHandlers(service)
+    message = SimpleNamespace(reply_text=AsyncMock())
+    update = SimpleNamespace(
+        effective_message=message,
+        effective_user=SimpleNamespace(id=7, username="allowed_user"),
+    )
+
+    asyncio.run(handlers.help(update, None))
+
+    reply = message.reply_text.await_args.args[0]
+    assert "/morning_report" in reply
+
+
+def test_morning_report_uses_standalone_service() -> None:
+    agent_service = SimpleNamespace(run=AsyncMock(), consume_artifacts=lambda session_id: [])
+    morning_report_service = SimpleNamespace(generate=AsyncMock(return_value="report"))
+    handlers = TelegramHandlers(agent_service, morning_report_service=morning_report_service)
+    message = SimpleNamespace(reply_text=AsyncMock())
+    update = SimpleNamespace(
+        effective_message=message,
+        effective_user=SimpleNamespace(id=7, username="allowed_user"),
+    )
+    context = SimpleNamespace(args=[])
+
+    asyncio.run(handlers.morning_report(update, context))
+
+    agent_service.run.assert_not_awaited()
+    morning_report_service.generate.assert_awaited_once()
+    message.reply_text.assert_awaited_once_with("report")
+
+
+def test_morning_report_rejects_arguments() -> None:
+    agent_service = SimpleNamespace(run=AsyncMock(), consume_artifacts=lambda session_id: [])
+    morning_report_service = SimpleNamespace(generate=AsyncMock(return_value="report"))
+    handlers = TelegramHandlers(agent_service, morning_report_service=morning_report_service)
+    message = SimpleNamespace(reply_text=AsyncMock())
+    update = SimpleNamespace(
+        effective_message=message,
+        effective_user=SimpleNamespace(id=7, username="allowed_user"),
+    )
+    context = SimpleNamespace(args=["2026-04-20"])
+
+    asyncio.run(handlers.morning_report(update, context))
+
+    morning_report_service.generate.assert_not_awaited()
+    message.reply_text.assert_awaited_once_with("Usage: /morning_report")

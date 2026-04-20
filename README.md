@@ -9,6 +9,7 @@ Simple Telegram bot built with PydanticAI, an OpenAI-compatible provider, and a 
 - Explicit plugin loading
 - Per-plugin CLI entrypoints for isolated testing
 - Example `get_time` tool plugin
+- Native Telegram `/morning_report` command with a dedicated PydanticAI morning brief
 - Optional `intervals_icu` plugin for wellness, weekly load progress, and activities
 - Optional `open_meteo` plugin for geocoding and weather forecasts
 - Optional `route_planner` plugin for GPX route generation via BRouter
@@ -31,6 +32,7 @@ make install
 - `TELEGRAM_AUTHORIZED_USERS` as a comma-separated list of allowed Telegram usernames or numeric user IDs
 - `APP_PUBLIC_BASE_URL` if you want absolute clickable download links in web or Telegram replies
 - `INTERVALS_ICU_API_KEY` and `INTERVALS_ICU_ATHLETE_ID` if you enable the Intervals.icu plugin
+- `MORNING_REPORT_LATITUDE`, `MORNING_REPORT_LONGITUDE`, `MORNING_REPORT_TIMEZONE`, and `MORNING_REPORT_LANGUAGE` if you want `/morning_report`
 - `ROUTE_PLANNER_BROUTER_URL` if you enable the route planner plugin
 - `STRAVA_CLIENT_ID` and `STRAVA_CLIENT_SECRET` if you want route planner to avoid known roads using Strava history
 
@@ -41,6 +43,8 @@ Start Telegram bot:
 ```bash
 make telegram
 ```
+
+Inside Telegram, `/morning_report` uses a dedicated morning-report flow and does not depend on the normal chat history.
 
 Start local web UI:
 
