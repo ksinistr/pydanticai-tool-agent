@@ -65,8 +65,9 @@ def test_intervals_wellness_query_rejects_date_and_range_together() -> None:
 
 def test_build_intervals_plugin_requires_credentials() -> None:
     config = AppConfig(
-        openrouter_api_key="test-key",
-        openrouter_model="openai/gpt-4.1-mini",
+        openai_api_key="test-key",
+        openai_base_url="https://provider.example.test/v1",
+        openai_model="gpt-4.1-mini",
         telegram_bot_token=None,
         telegram_authorized_users=(),
         enabled_plugins=("intervals_icu",),

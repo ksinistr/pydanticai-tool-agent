@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+import app.config as config_module
 from app.config import AppConfig, load_dotenv
 
 
@@ -12,8 +13,9 @@ def test_load_dotenv_reads_project_file(monkeypatch: pytest.MonkeyPatch, tmp_pat
     env_file.write_text(
         "\n".join(
             [
-                "OPENROUTER_API_KEY=test-key",
-                'OPENROUTER_MODEL="openai/gpt-4.1-mini"',
+                "OPENAI_API_KEY=test-key",
+                "OPENAI_BASE_URL=https://provider.example.test/v1",
+                'OPENAI_MODEL="gpt-4.1-mini"',
                 "TELEGRAM_BOT_TOKEN=test-telegram-token",
                 "TELEGRAM_AUTHORIZED_USERS=@alice,123456789",
                 "APP_ENABLED_PLUGINS=get_time,extra",
@@ -32,8 +34,9 @@ def test_load_dotenv_reads_project_file(monkeypatch: pytest.MonkeyPatch, tmp_pat
         )
     )
 
-    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
-    monkeypatch.delenv("OPENROUTER_MODEL", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
+    monkeypatch.delenv("OPENAI_MODEL", raising=False)
     monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
     monkeypatch.delenv("TELEGRAM_AUTHORIZED_USERS", raising=False)
     monkeypatch.delenv("APP_ENABLED_PLUGINS", raising=False)
@@ -52,8 +55,9 @@ def test_load_dotenv_reads_project_file(monkeypatch: pytest.MonkeyPatch, tmp_pat
     load_dotenv(env_file)
     config = AppConfig.from_env()
 
-    assert config.openrouter_api_key == "test-key"
-    assert config.openrouter_model == "openai/gpt-4.1-mini"
+    assert config.openai_api_key == "test-key"
+    assert config.openai_base_url == "https://provider.example.test/v1"
+    assert config.openai_model == "gpt-4.1-mini"
     assert config.telegram_bot_token == "test-telegram-token"
     assert config.telegram_authorized_users == ("@alice", "123456789")
     assert config.enabled_plugins == ("get_time", "extra")
@@ -68,3 +72,19 @@ def test_load_dotenv_reads_project_file(monkeypatch: pytest.MonkeyPatch, tmp_pat
     assert config.strava_client_secret == "strava-secret"
     assert config.strava_redirect_uri == "http://localhost/exchange_token"
     assert config.strava_data_dir == tmp_path / "strava"
+
+
+def test_from_env_uses_openai_compatible_defaults(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
+    monkeypatch.delenv("OPENAI_MODEL", raising=False)
+    monkeypatch.setattr(config_module, "project_root", lambda: tmp_path)
+
+    config = AppConfig.from_env()
+
+    assert config.openai_api_key is None
+    assert config.openai_base_url is None
+    assert config.openai_model == "gpt-4.1-mini"

@@ -1,6 +1,6 @@
 # PydanticAI Telegram Bot
 
-Simple Telegram bot built with PydanticAI, OpenRouter, and a small plugin contract that is easy to extend later.
+Simple Telegram bot built with PydanticAI, an OpenAI-compatible provider, and a small plugin contract that is easy to extend later.
 
 ## Features
 
@@ -24,8 +24,9 @@ make install
 
 3. Set these variables:
 
-- `OPENROUTER_API_KEY`
-- `OPENROUTER_MODEL`
+- `OPENAI_MODEL`
+- `OPENAI_BASE_URL` if you want to target an OpenAI-compatible provider instead of OpenAI directly
+- `OPENAI_API_KEY` if your provider requires one
 - `TELEGRAM_BOT_TOKEN` for Telegram mode
 - `TELEGRAM_AUTHORIZED_USERS` as a comma-separated list of allowed Telegram usernames or numeric user IDs
 - `APP_PUBLIC_BASE_URL` if you want absolute clickable download links in web or Telegram replies

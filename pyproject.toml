@@ -5,12 +5,12 @@ build-backend = "hatchling.build"
 [project]
 name = "pydanticai-telegram-bot"
 version = "0.1.0"
-description = "Simple Telegram bot with PydanticAI, OpenRouter, and plugin-based tools."
+description = "Simple Telegram bot with PydanticAI, OpenAI-compatible models, and plugin-based tools."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "httpx",
-    "pydantic-ai-slim[openrouter]",
+    "pydantic-ai-slim[openai]",
     "python-telegram-bot",
     "starlette",
     "uvicorn",

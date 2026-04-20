@@ -7,8 +7,9 @@ from pathlib import Path
 
 @dataclass(frozen=True, slots=True)
 class AppConfig:
-    openrouter_api_key: str
-    openrouter_model: str
+    openai_api_key: str | None
+    openai_base_url: str | None
+    openai_model: str
     telegram_bot_token: str | None
     telegram_authorized_users: tuple[str, ...]
     enabled_plugins: tuple[str, ...]
@@ -28,8 +29,9 @@ class AppConfig:
     def from_env(cls) -> AppConfig:
         load_dotenv()
         return cls(
-            openrouter_api_key=_require_env("OPENROUTER_API_KEY"),
-            openrouter_model=os.getenv("OPENROUTER_MODEL", "openai/gpt-4.1-mini"),
+            openai_api_key=_clean(os.getenv("OPENAI_API_KEY")),
+            openai_base_url=_clean(os.getenv("OPENAI_BASE_URL")),
+            openai_model=os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
             telegram_bot_token=_clean(os.getenv("TELEGRAM_BOT_TOKEN")),
             telegram_authorized_users=_parse_csv(os.getenv("TELEGRAM_AUTHORIZED_USERS")),
             enabled_plugins=_parse_csv(os.getenv("APP_ENABLED_PLUGINS", "get_time")),

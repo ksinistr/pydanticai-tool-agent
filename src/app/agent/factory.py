@@ -3,8 +3,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from pydantic_ai import Agent
-from pydantic_ai.models.openrouter import OpenRouterModel
-from pydantic_ai.providers.openrouter import OpenRouterProvider
+from pydantic_ai.models.openai import OpenAIChatModel
+from pydantic_ai.providers.openai import OpenAIProvider
 
 from app.config import AppConfig
 from app.plugins.base import AgentPlugin
@@ -27,8 +27,11 @@ def build_agent(config: AppConfig, plugins: Sequence[AgentPlugin]) -> Agent[None
     return agent
 
 
-def build_model(config: AppConfig) -> OpenRouterModel:
-    return OpenRouterModel(
-        config.openrouter_model,
-        provider=OpenRouterProvider(api_key=config.openrouter_api_key),
+def build_model(config: AppConfig) -> OpenAIChatModel:
+    return OpenAIChatModel(
+        config.openai_model,
+        provider=OpenAIProvider(
+            base_url=config.openai_base_url,
+            api_key=config.openai_api_key,
+        ),
     )

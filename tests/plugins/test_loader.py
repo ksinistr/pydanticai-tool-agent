@@ -10,8 +10,9 @@ from app.plugins.loader import UnknownPluginError, load_plugins
 
 def test_load_plugins_returns_configured_plugins() -> None:
     config = AppConfig(
-        openrouter_api_key="test-key",
-        openrouter_model="openai/gpt-4.1-mini",
+        openai_api_key="test-key",
+        openai_base_url="https://provider.example.test/v1",
+        openai_model="gpt-4.1-mini",
         telegram_bot_token=None,
         telegram_authorized_users=(),
         enabled_plugins=("get_time", "open_meteo", "route_planner"),
@@ -35,8 +36,9 @@ def test_load_plugins_returns_configured_plugins() -> None:
 
 def test_load_plugins_raises_for_unknown_plugin() -> None:
     config = AppConfig(
-        openrouter_api_key="test-key",
-        openrouter_model="openai/gpt-4.1-mini",
+        openai_api_key="test-key",
+        openai_base_url="https://provider.example.test/v1",
+        openai_model="gpt-4.1-mini",
         telegram_bot_token=None,
         telegram_authorized_users=(),
         enabled_plugins=("missing",),
