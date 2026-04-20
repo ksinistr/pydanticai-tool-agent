@@ -10,6 +10,8 @@ class AppConfig:
     openai_api_key: str | None
     openai_base_url: str | None
     openai_model: str
+    openai_temperature: float | None
+    openai_top_p: float | None
     telegram_bot_token: str | None
     telegram_authorized_users: tuple[str, ...]
     enabled_plugins: tuple[str, ...]
@@ -32,6 +34,8 @@ class AppConfig:
             openai_api_key=_clean(os.getenv("OPENAI_API_KEY")),
             openai_base_url=_clean(os.getenv("OPENAI_BASE_URL")),
             openai_model=os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
+            openai_temperature=_parse_optional_float(os.getenv("OPENAI_TEMPERATURE")),
+            openai_top_p=_parse_optional_float(os.getenv("OPENAI_TOP_P")),
             telegram_bot_token=_clean(os.getenv("TELEGRAM_BOT_TOKEN")),
             telegram_authorized_users=_parse_csv(os.getenv("TELEGRAM_AUTHORIZED_USERS")),
             enabled_plugins=_parse_csv(os.getenv("APP_ENABLED_PLUGINS", "get_time")),
@@ -113,6 +117,13 @@ def _clean(value: str | None) -> str | None:
         return None
     cleaned = value.strip()
     return cleaned or None
+
+
+def _parse_optional_float(value: str | None) -> float | None:
+    cleaned = _clean(value)
+    if cleaned is None:
+        return None
+    return float(cleaned)
 
 
 def _strip_quotes(value: str) -> str:

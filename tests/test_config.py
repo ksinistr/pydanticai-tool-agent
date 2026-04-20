@@ -16,6 +16,8 @@ def test_load_dotenv_reads_project_file(monkeypatch: pytest.MonkeyPatch, tmp_pat
                 "OPENAI_API_KEY=test-key",
                 "OPENAI_BASE_URL=https://provider.example.test/v1",
                 'OPENAI_MODEL="gpt-4.1-mini"',
+                "OPENAI_TEMPERATURE=0.3",
+                "OPENAI_TOP_P=0.8",
                 "TELEGRAM_BOT_TOKEN=test-telegram-token",
                 "TELEGRAM_AUTHORIZED_USERS=@alice,123456789",
                 "APP_ENABLED_PLUGINS=get_time,extra",
@@ -37,6 +39,8 @@ def test_load_dotenv_reads_project_file(monkeypatch: pytest.MonkeyPatch, tmp_pat
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
     monkeypatch.delenv("OPENAI_MODEL", raising=False)
+    monkeypatch.delenv("OPENAI_TEMPERATURE", raising=False)
+    monkeypatch.delenv("OPENAI_TOP_P", raising=False)
     monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
     monkeypatch.delenv("TELEGRAM_AUTHORIZED_USERS", raising=False)
     monkeypatch.delenv("APP_ENABLED_PLUGINS", raising=False)
@@ -58,6 +62,8 @@ def test_load_dotenv_reads_project_file(monkeypatch: pytest.MonkeyPatch, tmp_pat
     assert config.openai_api_key == "test-key"
     assert config.openai_base_url == "https://provider.example.test/v1"
     assert config.openai_model == "gpt-4.1-mini"
+    assert config.openai_temperature == 0.3
+    assert config.openai_top_p == 0.8
     assert config.telegram_bot_token == "test-telegram-token"
     assert config.telegram_authorized_users == ("@alice", "123456789")
     assert config.enabled_plugins == ("get_time", "extra")
@@ -81,6 +87,8 @@ def test_from_env_uses_openai_compatible_defaults(
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
     monkeypatch.delenv("OPENAI_MODEL", raising=False)
+    monkeypatch.delenv("OPENAI_TEMPERATURE", raising=False)
+    monkeypatch.delenv("OPENAI_TOP_P", raising=False)
     monkeypatch.setattr(config_module, "project_root", lambda: tmp_path)
 
     config = AppConfig.from_env()
@@ -88,3 +96,5 @@ def test_from_env_uses_openai_compatible_defaults(
     assert config.openai_api_key is None
     assert config.openai_base_url is None
     assert config.openai_model == "gpt-4.1-mini"
+    assert config.openai_temperature is None
+    assert config.openai_top_p is None

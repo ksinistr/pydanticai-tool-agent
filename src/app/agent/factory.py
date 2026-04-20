@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from pydantic_ai import Agent
+from pydantic_ai import Agent, ModelSettings
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
 
@@ -34,4 +34,14 @@ def build_model(config: AppConfig) -> OpenAIChatModel:
             base_url=config.openai_base_url,
             api_key=config.openai_api_key,
         ),
+        settings=_build_model_settings(config),
     )
+
+
+def _build_model_settings(config: AppConfig) -> ModelSettings | None:
+    settings: ModelSettings = {}
+    if config.openai_temperature is not None:
+        settings["temperature"] = config.openai_temperature
+    if config.openai_top_p is not None:
+        settings["top_p"] = config.openai_top_p
+    return settings or None
