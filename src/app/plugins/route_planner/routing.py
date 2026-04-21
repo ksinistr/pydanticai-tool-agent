@@ -141,7 +141,9 @@ class RoutePlannerClient:
             raise RoutePlannerError("At least 2 waypoints are required.")
 
         self._output_dir.mkdir(parents=True, exist_ok=True)
-        safe_name = "".join(char if char.isalnum() or char in "-_" else "_" for char in route_name).strip("_")
+        safe_name = "".join(
+            char if char.isalnum() or char in "-_" else "_" for char in route_name
+        ).strip("_")
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"{safe_name or 'route'}_{timestamp}.gpx"
         filepath = self._output_dir / filename
@@ -277,7 +279,9 @@ class RoutePlannerClient:
         track_length = float(properties.get("track-length", 0))
         total_time = float(properties.get("total-time", 0))
         total_ascend = float(properties.get("filtered ascend", properties.get("plain-ascend", 0)))
-        total_descend = abs(float(properties.get("filtered descend", properties.get("plain-descend", 0))))
+        total_descend = abs(
+            float(properties.get("filtered descend", properties.get("plain-descend", 0)))
+        )
 
         result = {
             "profile": profile,

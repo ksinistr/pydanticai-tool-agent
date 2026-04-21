@@ -23,4 +23,3 @@ class GetTimeService:
             display=f"{current_time.strftime('%Y-%m-%d %H:%M:%S')} ({timezone_name})",
             timezone_name=timezone_name,
         )
-

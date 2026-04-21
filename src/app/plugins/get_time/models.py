@@ -11,4 +11,3 @@ class TimeResponse(BaseModel):
     iso_datetime: str
     display: str
     timezone_name: str
-

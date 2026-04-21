@@ -31,8 +31,7 @@ def destination_point(
     lat1 = radians(lat)
     lon1 = radians(lon)
     lat2 = asin(
-        sin(lat1) * cos(angular_distance)
-        + cos(lat1) * sin(angular_distance) * cos(bearing)
+        sin(lat1) * cos(angular_distance) + cos(lat1) * sin(angular_distance) * cos(bearing)
     )
     lon2 = lon1 + atan2(
         sin(bearing) * sin(angular_distance) * cos(lat1),

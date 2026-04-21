@@ -110,7 +110,9 @@ class StravaService:
         }
         response = self._http_client.post(STRAVA_TOKEN_URL, data=payload, timeout=30.0)
         if response.status_code != 200:
-            raise StravaError(f"Strava token exchange failed: {response.status_code} {response.text[:300]}")
+            raise StravaError(
+                f"Strava token exchange failed: {response.status_code} {response.text[:300]}"
+            )
         token_set = StravaTokenSet.from_payload(response.json(), scope=scope)
         self.save_token_set(token_set)
         return token_set
@@ -121,7 +123,9 @@ class StravaService:
             raise StravaError(f"Missing Strava configuration: {', '.join(missing)}")
         token_set = self.load_token_set()
         if token_set is None:
-            raise StravaError("Strava is not authorized yet. Run route-planner-tool strava-auth-url first.")
+            raise StravaError(
+                "Strava is not authorized yet. Run route-planner-tool strava-auth-url first."
+            )
         if not token_set.scope:
             token_set.scope = STRAVA_REQUIRED_SCOPE
         if STRAVA_REQUIRED_SCOPE not in token_set.scope.split(","):
@@ -140,7 +144,9 @@ class StravaService:
             timeout=30.0,
         )
         if response.status_code != 200:
-            raise StravaError(f"Strava athlete lookup failed: {response.status_code} {response.text[:300]}")
+            raise StravaError(
+                f"Strava athlete lookup failed: {response.status_code} {response.text[:300]}"
+            )
         return response.json()
 
     def sync_all_activities(self) -> StravaSyncSummary:
@@ -156,7 +162,9 @@ class StravaService:
                 timeout=60.0,
             )
             if response.status_code != 200:
-                raise StravaError(f"Strava activity sync failed: {response.status_code} {response.text[:300]}")
+                raise StravaError(
+                    f"Strava activity sync failed: {response.status_code} {response.text[:300]}"
+                )
             activities = response.json()
             if not isinstance(activities, list) or not activities:
                 break
@@ -169,7 +177,9 @@ class StravaService:
             + ("\n" if all_records else ""),
             encoding="utf-8",
         )
-        return StravaSyncSummary(total_activities=len(all_records), pages_fetched=max(page_number - 1, 0))
+        return StravaSyncSummary(
+            total_activities=len(all_records), pages_fetched=max(page_number - 1, 0)
+        )
 
     def load_cached_activities(self) -> list[dict[str, Any]]:
         path = self.activities_metadata_path()
@@ -220,20 +230,26 @@ class StravaService:
             expires_at=int(payload["expires_at"]),
             token_type=str(payload.get("token_type", "Bearer")),
             scope=str(payload.get("scope", "")),
-            athlete_id=int(payload["athlete_id"]) if payload.get("athlete_id") is not None else None,
+            athlete_id=int(payload["athlete_id"])
+            if payload.get("athlete_id") is not None
+            else None,
         )
 
     def save_token_set(self, token_set: StravaTokenSet) -> None:
         self.ensure_storage()
         token_path = self._settings.data_dir / "strava_tokens.json"
-        token_path.write_text(json.dumps(asdict(token_set), indent=2, sort_keys=True), encoding="utf-8")
+        token_path.write_text(
+            json.dumps(asdict(token_set), indent=2, sort_keys=True), encoding="utf-8"
+        )
 
     def load_cached_stream(self, activity_id: int) -> list[tuple[float, float]] | None:
         path = self._settings.data_dir / "streams" / f"{activity_id}.json"
         if not path.exists():
             return None
         payload = json.loads(path.read_text(encoding="utf-8"))
-        return [(float(latitude), float(longitude)) for latitude, longitude in payload.get("points", [])]
+        return [
+            (float(latitude), float(longitude)) for latitude, longitude in payload.get("points", [])
+        ]
 
     def save_cached_stream(self, activity_id: int, points: list[tuple[float, float]]) -> None:
         self.ensure_storage()
@@ -257,14 +273,20 @@ class StravaService:
         }
         response = self._http_client.post(STRAVA_TOKEN_URL, data=payload, timeout=30.0)
         if response.status_code != 200:
-            raise StravaError(f"Strava token refresh failed: {response.status_code} {response.text[:300]}")
+            raise StravaError(
+                f"Strava token refresh failed: {response.status_code} {response.text[:300]}"
+            )
         token_set = StravaTokenSet.from_payload(response.json(), scope=scope)
         self.save_token_set(token_set)
         return token_set
 
 
 def _build_activity_record(activity: dict[str, Any]) -> dict[str, Any]:
-    summary_polyline = activity.get("map", {}).get("summary_polyline") if isinstance(activity.get("map"), dict) else None
+    summary_polyline = (
+        activity.get("map", {}).get("summary_polyline")
+        if isinstance(activity.get("map"), dict)
+        else None
+    )
     summary_points = decode_polyline(summary_polyline) if summary_polyline else []
     bbox = bbox_from_points(summary_points)
     start_latlng = activity.get("start_latlng") or None

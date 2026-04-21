@@ -7,7 +7,11 @@ from typing import Callable
 
 from app.plugins.route_planner.geo import destination_point, haversine_distance
 from app.plugins.route_planner.geometry import buffer_polyline
-from app.plugins.route_planner.routing import BrouterPolygonNogo, RoutePlannerClient, RoutePlannerError
+from app.plugins.route_planner.routing import (
+    BrouterPolygonNogo,
+    RoutePlannerClient,
+    RoutePlannerError,
+)
 
 
 GlobalNogoProvider = Callable[[tuple[float, float], float, list[float]], list[BrouterPolygonNogo]]
@@ -140,13 +144,17 @@ class RoundTripPipeline:
         bearings_deg = [float(bearing_offset_deg + index * 30) for index in range(12)]
         global_nogo_polygons: list[BrouterPolygonNogo] = []
         if self._global_nogo_provider is not None:
-            global_nogo_polygons = self._global_nogo_provider(result.start_coords, max_total_km, radii_km)
+            global_nogo_polygons = self._global_nogo_provider(
+                result.start_coords, max_total_km, radii_km
+            )
 
         accepted_candidates: list[RoundTripCandidate] = []
         candidate_index = 1
         for radius_km in radii_km:
             for base_bearing_deg in bearings_deg:
-                seed = self._build_seed(candidate_index, result.start_coords, radius_km, base_bearing_deg)
+                seed = self._build_seed(
+                    candidate_index, result.start_coords, radius_km, base_bearing_deg
+                )
                 best_candidate = self._evaluate_seed(
                     seed=seed,
                     profile=profile,
@@ -160,7 +168,9 @@ class RoundTripPipeline:
 
         selected_candidates = self._select_distinct_candidates(accepted_candidates)
         if not selected_candidates:
-            result.error = "No routable round-trip candidate could be built from the sampled sectors."
+            result.error = (
+                "No routable round-trip candidate could be built from the sampled sectors."
+            )
             return result
 
         route_name = self._build_route_name(result.start_name)
@@ -225,7 +235,9 @@ class RoundTripPipeline:
         best_candidate = base_candidate
 
         if self._needs_repair(base_candidate):
-            soft_polygon = self._build_repair_polygon(base_candidate, SOFT_REPAIR_CORRIDOR_M, SOFT_REPAIR_WEIGHT)
+            soft_polygon = self._build_repair_polygon(
+                base_candidate, SOFT_REPAIR_CORRIDOR_M, SOFT_REPAIR_WEIGHT
+            )
             if soft_polygon is not None:
                 soft_candidate = self._route_attempt(
                     seed,
@@ -283,10 +295,14 @@ class RoundTripPipeline:
         candidate.distance_km = float(route.get("distance_km", 0))
         candidate.ascent_m = float(route.get("elevation", {}).get("ascent_m", 0))
         candidate.geometry_points = self._extract_geometry_points(route.get("geometry", {}))
-        candidate.segments, candidate.total_length_m = self._build_segments(candidate.geometry_points)
+        candidate.segments, candidate.total_length_m = self._build_segments(
+            candidate.geometry_points
+        )
         if not candidate.segments:
             return None
-        candidate.overlap_total_m, candidate.overlap_max_run_m, candidate.overlap_run = self._measure_self_overlap(candidate)
+        candidate.overlap_total_m, candidate.overlap_max_run_m, candidate.overlap_run = (
+            self._measure_self_overlap(candidate)
+        )
         candidate.status = "accepted"
         return candidate
 
@@ -304,7 +320,10 @@ class RoundTripPipeline:
             return points
         sampled = [points[0]]
         for point in points[1:-1]:
-            if haversine_distance(sampled[-1][0], sampled[-1][1], point[0], point[1]) * 1000 >= GEOMETRY_SPACING_M:
+            if (
+                haversine_distance(sampled[-1][0], sampled[-1][1], point[0], point[1]) * 1000
+                >= GEOMETRY_SPACING_M
+            ):
                 sampled.append(point)
         if sampled[-1] != points[-1]:
             sampled.append(points[-1])
@@ -360,7 +379,9 @@ class RoundTripPipeline:
                     flags[index] = True
                     flags[other_index] = True
                     break
-        total_overlap_m = sum(segment.length_m for flag, segment in zip(flags, candidate.segments) if flag) / 2
+        total_overlap_m = (
+            sum(segment.length_m for flag, segment in zip(flags, candidate.segments) if flag) / 2
+        )
         longest_run = self._longest_overlap_run(flags, candidate.segments)
         max_run_m = longest_run.length_m if longest_run is not None else 0.0
         return total_overlap_m, max_run_m, longest_run
@@ -382,7 +403,11 @@ class RoundTripPipeline:
                 continue
             if start_index is None:
                 continue
-            candidate_run = OverlapRun(start_segment_index=start_index, end_segment_index=index - 1, length_m=current_length)
+            candidate_run = OverlapRun(
+                start_segment_index=start_index,
+                end_segment_index=index - 1,
+                length_m=current_length,
+            )
             if longest_run is None or candidate_run.length_m > longest_run.length_m:
                 longest_run = candidate_run
             start_index = None
@@ -398,13 +423,21 @@ class RoundTripPipeline:
         return longest_run
 
     def _segments_share_corridor(self, segment: SegmentInfo, other_segment: SegmentInfo) -> bool:
-        if segment.midpoint_dist_to_start_m <= START_GRACE_M or other_segment.midpoint_dist_to_start_m <= START_GRACE_M:
+        if (
+            segment.midpoint_dist_to_start_m <= START_GRACE_M
+            or other_segment.midpoint_dist_to_start_m <= START_GRACE_M
+        ):
             return False
-        if self._orientation_difference(segment.orientation_deg, other_segment.orientation_deg) > PARALLEL_DIFF_DEG:
+        if (
+            self._orientation_difference(segment.orientation_deg, other_segment.orientation_deg)
+            > PARALLEL_DIFF_DEG
+        ):
             return False
         return self._segment_distance(segment, other_segment) <= CORRIDOR_DISTANCE_M
 
-    def _orientation_difference(self, orientation_deg: float, other_orientation_deg: float) -> float:
+    def _orientation_difference(
+        self, orientation_deg: float, other_orientation_deg: float
+    ) -> float:
         difference = abs(orientation_deg - other_orientation_deg)
         return min(difference, 180 - difference)
 
@@ -430,9 +463,13 @@ class RoundTripPipeline:
         nearest_y = ay + t * dy
         return math.hypot(px - nearest_x, py - nearest_y)
 
-    def _score_candidate(self, candidate: RoundTripCandidate, max_total_km: float, max_elevation_m: float | None) -> None:
+    def _score_candidate(
+        self, candidate: RoundTripCandidate, max_total_km: float, max_elevation_m: float | None
+    ) -> None:
         candidate.distance_penalty = self._limit_penalty(candidate.distance_km, max_total_km)
-        candidate.under_distance_penalty = self._calc_under_distance_penalty(candidate.distance_km, max_total_km)
+        candidate.under_distance_penalty = self._calc_under_distance_penalty(
+            candidate.distance_km, max_total_km
+        )
         candidate.elevation_penalty = self._elevation_penalty(candidate.ascent_m, max_elevation_m)
         candidate.overlap_penalty = self._overlap_penalty(candidate)
         candidate.distance_bonus = self._distance_bonus(candidate.distance_km, max_total_km)
@@ -472,7 +509,9 @@ class RoundTripPipeline:
         return (excess_ratio * 10.0) ** 2
 
     def _overlap_penalty(self, candidate: RoundTripCandidate) -> float:
-        return candidate.overlap_max_run_m / TARGET_OVERLAP_RUN_M + candidate.overlap_total_m / (TARGET_OVERLAP_TOTAL_M * 2.0)
+        return candidate.overlap_max_run_m / TARGET_OVERLAP_RUN_M + candidate.overlap_total_m / (
+            TARGET_OVERLAP_TOTAL_M * 2.0
+        )
 
     def _distance_bonus(self, distance_km: float, max_total_km: float) -> float:
         if max_total_km <= 0 or distance_km > max_total_km:
@@ -480,7 +519,10 @@ class RoundTripPipeline:
         return min(distance_km / max_total_km, 1.0) * DISTANCE_BONUS_WEIGHT
 
     def _needs_repair(self, candidate: RoundTripCandidate) -> bool:
-        return candidate.overlap_max_run_m > TARGET_OVERLAP_RUN_M or candidate.overlap_total_m > TARGET_OVERLAP_TOTAL_M
+        return (
+            candidate.overlap_max_run_m > TARGET_OVERLAP_RUN_M
+            or candidate.overlap_total_m > TARGET_OVERLAP_TOTAL_M
+        )
 
     def _build_repair_polygon(
         self,
@@ -512,7 +554,9 @@ class RoundTripPipeline:
     def _normalize_bearing(self, bearing_deg: float) -> float:
         return bearing_deg % 360
 
-    def _select_distinct_candidates(self, candidates: list[RoundTripCandidate]) -> list[RoundTripCandidate]:
+    def _select_distinct_candidates(
+        self, candidates: list[RoundTripCandidate]
+    ) -> list[RoundTripCandidate]:
         selected: list[RoundTripCandidate] = []
         sorted_candidates = sorted(
             candidates,
@@ -543,7 +587,9 @@ class RoundTripPipeline:
                 break
         return selected
 
-    def _shared_ratio(self, candidate: RoundTripCandidate, other_candidate: RoundTripCandidate) -> float:
+    def _shared_ratio(
+        self, candidate: RoundTripCandidate, other_candidate: RoundTripCandidate
+    ) -> float:
         if not candidate.segments or not other_candidate.segments or candidate.total_length_m <= 0:
             return 0.0
         shared_length_m = 0.0

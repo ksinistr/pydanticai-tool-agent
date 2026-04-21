@@ -37,7 +37,9 @@ class OpenMeteoService:
             },
             forecast,
         )
-        return _to_json(_build_forecast_result(location=location, forecast=forecast, request=request))
+        return _to_json(
+            _build_forecast_result(location=location, forecast=forecast, request=request)
+        )
 
 
 def _build_forecast_result(location: dict, forecast: dict, request: ForecastRequest) -> dict:

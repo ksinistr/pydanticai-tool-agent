@@ -46,9 +46,7 @@ def test_intervals_service_lists_activities_with_selected_fields() -> None:
     service = IntervalsIcuService(client)
 
     payload = json.loads(
-        service.list_activities(
-            ActivitiesQuery(oldest="2026-04-01", newest="2026-04-19", limit=5)
-        )
+        service.list_activities(ActivitiesQuery(oldest="2026-04-01", newest="2026-04-19", limit=5))
     )
 
     assert seen["path"] == "/api/v1/athlete/athlete-1/activities"

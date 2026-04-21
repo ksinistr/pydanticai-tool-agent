@@ -4,7 +4,11 @@ import asyncio
 from types import SimpleNamespace
 from zoneinfo import ZoneInfoNotFoundError
 
-from app.morning_report.models import MorningReportContext, MorningReportSettings, MorningReportSetup
+from app.morning_report.models import (
+    MorningReportContext,
+    MorningReportSettings,
+    MorningReportSetup,
+)
 from app.morning_report.service import MorningReportService
 
 

@@ -3,7 +3,11 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 
-from app.plugins.route_planner.models import PointToPointRouteRequest, RoundTripRouteRequest, StravaSettings
+from app.plugins.route_planner.models import (
+    PointToPointRouteRequest,
+    RoundTripRouteRequest,
+    StravaSettings,
+)
 from app.plugins.route_planner.round_trip import RoundTripCandidate, RoundTripResult
 from app.plugins.route_planner.service import RoutePlannerService
 from app.plugins.route_planner.strava import StravaService
@@ -82,7 +86,9 @@ class FakeRoundTripPipeline:
         assert max_elevation_m == 800
         assert profile == "gravel"
         if self._global_nogo_provider is not None:
-            polygons = self._global_nogo_provider((34.775, 32.424), max_total_km, [11.3, 12.0, 12.7])
+            polygons = self._global_nogo_provider(
+                (34.775, 32.424), max_total_km, [11.3, 12.0, 12.7]
+            )
             assert len(polygons) == 2
         candidate = RoundTripCandidate(
             candidate_id="RT03",
@@ -117,7 +123,9 @@ def test_route_planner_service_builds_point_to_point_payload(monkeypatch) -> Non
         filename = "coast_ride.gpx"
         download_url = "/downloads/fake-point"
 
-    monkeypatch.setattr(service_module.artifact_store, "register_file", lambda path, filename=None: FakeArtifact())
+    monkeypatch.setattr(
+        service_module.artifact_store, "register_file", lambda path, filename=None: FakeArtifact()
+    )
     service = RoutePlannerService(
         FakeRoutePlannerClient(),
         public_base_url="https://agent.example.test",
@@ -166,11 +174,13 @@ def test_route_planner_service_adds_strava_avoidance_summary(monkeypatch) -> Non
     monkeypatch.setattr(
         service_module,
         "build_round_trip_strava_nogos",
-        lambda strava_service, route_client, start_coords, max_total_km, radii_km: FakeStravaSelection(
-            candidate_activities=27,
-            clipped_segments=14,
-            polygons=[object(), object()],
-            search_radius_km=9.5,
+        lambda strava_service, route_client, start_coords, max_total_km, radii_km: (
+            FakeStravaSelection(
+                candidate_activities=27,
+                clipped_segments=14,
+                polygons=[object(), object()],
+                search_radius_km=9.5,
+            )
         ),
     )
     monkeypatch.setattr(

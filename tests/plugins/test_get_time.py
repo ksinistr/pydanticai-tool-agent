@@ -19,4 +19,3 @@ def test_get_current_time_rejects_unknown_timezone() -> None:
 
     with pytest.raises(ValueError, match="Unknown timezone: Mars/Olympus"):
         service.get_current_time(TimeRequest(timezone_name="Mars/Olympus"))
-

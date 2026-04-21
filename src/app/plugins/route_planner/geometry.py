@@ -70,10 +70,7 @@ def bboxes_intersect(
     if left is None or right is None:
         return False
     return not (
-        left[2] < right[0]
-        or right[2] < left[0]
-        or left[3] < right[1]
-        or right[3] < left[1]
+        left[2] < right[0] or right[2] < left[0] or left[3] < right[1] or right[3] < left[1]
     )
 
 
@@ -89,12 +86,9 @@ def point_in_polygon(
 
     for current_latitude, current_longitude in polygon:
         if (current_longitude > longitude) != (previous_longitude > longitude):
-            intersection_latitude = (
-                (previous_latitude - current_latitude)
-                * (longitude - current_longitude)
-                / ((previous_longitude - current_longitude) or 1e-12)
-                + current_latitude
-            )
+            intersection_latitude = (previous_latitude - current_latitude) * (
+                longitude - current_longitude
+            ) / ((previous_longitude - current_longitude) or 1e-12) + current_latitude
             if latitude < intersection_latitude:
                 inside = not inside
         previous_latitude, previous_longitude = current_latitude, current_longitude
@@ -186,12 +180,15 @@ def clip_polyline_to_polygon(
 def polyline_length_m(points: list[tuple[float, float]]) -> float:
     total_length_m = 0.0
     for start_point, end_point in zip(points, points[1:]):
-        total_length_m += haversine_distance(
-            start_point[0],
-            start_point[1],
-            end_point[0],
-            end_point[1],
-        ) * 1000
+        total_length_m += (
+            haversine_distance(
+                start_point[0],
+                start_point[1],
+                end_point[0],
+                end_point[1],
+            )
+            * 1000
+        )
     return total_length_m
 
 
@@ -204,12 +201,15 @@ def downsample_polyline(
 
     sampled_points = [points[0]]
     for point in points[1:-1]:
-        distance_m = haversine_distance(
-            sampled_points[-1][0],
-            sampled_points[-1][1],
-            point[0],
-            point[1],
-        ) * 1000
+        distance_m = (
+            haversine_distance(
+                sampled_points[-1][0],
+                sampled_points[-1][1],
+                point[0],
+                point[1],
+            )
+            * 1000
+        )
         if distance_m >= spacing_m:
             sampled_points.append(point)
 
@@ -263,10 +263,9 @@ def _orientation(
     middle_point: tuple[float, float],
     end_point: tuple[float, float],
 ) -> int:
-    value = (
-        (middle_point[1] - start_point[1]) * (end_point[0] - middle_point[0])
-        - (middle_point[0] - start_point[0]) * (end_point[1] - middle_point[1])
-    )
+    value = (middle_point[1] - start_point[1]) * (end_point[0] - middle_point[0]) - (
+        middle_point[0] - start_point[0]
+    ) * (end_point[1] - middle_point[1])
     if abs(value) < 1e-12:
         return 0
     return 1 if value > 0 else -1
@@ -277,10 +276,9 @@ def _on_segment(
     point: tuple[float, float],
     end_point: tuple[float, float],
 ) -> bool:
-    return (
-        min(start_point[0], end_point[0]) <= point[0] <= max(start_point[0], end_point[0])
-        and min(start_point[1], end_point[1]) <= point[1] <= max(start_point[1], end_point[1])
-    )
+    return min(start_point[0], end_point[0]) <= point[0] <= max(
+        start_point[0], end_point[0]
+    ) and min(start_point[1], end_point[1]) <= point[1] <= max(start_point[1], end_point[1])
 
 
 def _dedupe_points(points: list[tuple[float, float]]) -> list[tuple[float, float]]:

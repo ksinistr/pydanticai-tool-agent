@@ -74,7 +74,9 @@ class RoutePlannerService:
             )
             pipeline = RoundTripPipeline(
                 route_client=self._route_client,
-                global_nogo_provider=lambda start_coords, max_total_km, radii_km: strava_selection.polygons,
+                global_nogo_provider=lambda start_coords, max_total_km, radii_km: (
+                    strava_selection.polygons
+                ),
             )
         else:
             pipeline = RoundTripPipeline(route_client=self._route_client)
@@ -116,7 +118,9 @@ class RoutePlannerService:
                             "distance_penalty": round(candidate.distance_penalty, 2),
                             "under_distance_penalty": round(candidate.under_distance_penalty, 2),
                             "elevation_penalty": round(candidate.elevation_penalty, 2),
-                            "weighted_elevation_penalty": round(candidate.elevation_penalty * ELEVATION_PENALTY_WEIGHT, 2),
+                            "weighted_elevation_penalty": round(
+                                candidate.elevation_penalty * ELEVATION_PENALTY_WEIGHT, 2
+                            ),
                             "distance_bonus": round(candidate.distance_bonus, 2),
                         },
                         "gpx": self._gpx_attachment(candidate.gpx_filepath, candidate.gpx_filename),

@@ -58,7 +58,9 @@ def build_round_trip_strava_nogos(
         return StravaNogoSelection([], [], 0.0, 0, 0)
 
     search_radius_km = _derive_search_radius_km(max_total_km, radii_km)
-    search_polygon = build_radial_polygon(start_coords[0], start_coords[1], search_radius_km, vertex_count=24)
+    search_polygon = build_radial_polygon(
+        start_coords[0], start_coords[1], search_radius_km, vertex_count=24
+    )
     search_bbox = bbox_from_points(search_polygon)
     cache_key = _build_selection_cache_key(strava_service, start_coords, search_radius_km)
     cached_selection = _load_selection_cache(strava_service, cache_key)
@@ -93,7 +95,9 @@ def build_round_trip_strava_nogos(
             polygon = _simplify_nogo_polygon(polygon)
             if len(polygon) < 4:
                 continue
-            scored_polygons.append((length_m, BrouterPolygonNogo(points=polygon, weight=SOFT_WEIGHT)))
+            scored_polygons.append(
+                (length_m, BrouterPolygonNogo(points=polygon, weight=SOFT_WEIGHT))
+            )
             clipped_segments += 1
 
     scored_polygons.sort(key=lambda item: item[0], reverse=True)
@@ -146,7 +150,9 @@ def _load_selection_cache(
     return StravaNogoSelection(
         polygons=[
             BrouterPolygonNogo(
-                points=[(float(latitude), float(longitude)) for latitude, longitude in polygon["points"]],
+                points=[
+                    (float(latitude), float(longitude)) for latitude, longitude in polygon["points"]
+                ],
                 weight=float(polygon["weight"]) if polygon.get("weight") is not None else None,
             )
             for polygon in payload.get("polygons", [])

@@ -27,6 +27,10 @@ def test_load_dotenv_reads_project_file(monkeypatch: pytest.MonkeyPatch, tmp_pat
                 "INTERVALS_ICU_API_KEY=intervals-secret",
                 "INTERVALS_ICU_ATHLETE_ID=athlete-1",
                 "INTERVALS_ICU_BASE_URL=https://intervals.icu",
+                "CALDAV_SERVER_URL=https://baikal.example.test/dav.php/",
+                "CALDAV_USERNAME=alice",
+                "BAIKAL_PASSWORD=backup-secret",
+                "CALDAV_INSECURE_SKIP_VERIFY=true",
                 "MORNING_REPORT_LATITUDE=34.7765",
                 "MORNING_REPORT_LONGITUDE=32.4241",
                 "MORNING_REPORT_TIMEZONE=Asia/Nicosia",
@@ -54,6 +58,11 @@ def test_load_dotenv_reads_project_file(monkeypatch: pytest.MonkeyPatch, tmp_pat
     monkeypatch.delenv("INTERVALS_ICU_API_KEY", raising=False)
     monkeypatch.delenv("INTERVALS_ICU_ATHLETE_ID", raising=False)
     monkeypatch.delenv("INTERVALS_ICU_BASE_URL", raising=False)
+    monkeypatch.delenv("CALDAV_SERVER_URL", raising=False)
+    monkeypatch.delenv("CALDAV_USERNAME", raising=False)
+    monkeypatch.delenv("CALDAV_PASSWORD", raising=False)
+    monkeypatch.delenv("BAIKAL_PASSWORD", raising=False)
+    monkeypatch.delenv("CALDAV_INSECURE_SKIP_VERIFY", raising=False)
     monkeypatch.delenv("MORNING_REPORT_LATITUDE", raising=False)
     monkeypatch.delenv("MORNING_REPORT_LONGITUDE", raising=False)
     monkeypatch.delenv("MORNING_REPORT_TIMEZONE", raising=False)
@@ -81,6 +90,10 @@ def test_load_dotenv_reads_project_file(monkeypatch: pytest.MonkeyPatch, tmp_pat
     assert config.intervals_icu_api_key == "intervals-secret"
     assert config.intervals_icu_athlete_id == "athlete-1"
     assert config.intervals_icu_base_url == "https://intervals.icu"
+    assert config.caldav_server_url == "https://baikal.example.test/dav.php/"
+    assert config.caldav_username == "alice"
+    assert config.caldav_password == "backup-secret"
+    assert config.caldav_insecure_skip_verify is True
     assert config.morning_report_latitude == 34.7765
     assert config.morning_report_longitude == 32.4241
     assert config.morning_report_timezone == "Asia/Nicosia"
@@ -101,6 +114,11 @@ def test_from_env_uses_openai_compatible_defaults(
     monkeypatch.delenv("OPENAI_MODEL", raising=False)
     monkeypatch.delenv("OPENAI_TEMPERATURE", raising=False)
     monkeypatch.delenv("OPENAI_TOP_P", raising=False)
+    monkeypatch.delenv("CALDAV_SERVER_URL", raising=False)
+    monkeypatch.delenv("CALDAV_USERNAME", raising=False)
+    monkeypatch.delenv("CALDAV_PASSWORD", raising=False)
+    monkeypatch.delenv("BAIKAL_PASSWORD", raising=False)
+    monkeypatch.delenv("CALDAV_INSECURE_SKIP_VERIFY", raising=False)
     monkeypatch.delenv("MORNING_REPORT_LATITUDE", raising=False)
     monkeypatch.delenv("MORNING_REPORT_LONGITUDE", raising=False)
     monkeypatch.delenv("MORNING_REPORT_TIMEZONE", raising=False)
@@ -118,9 +136,28 @@ def test_from_env_uses_openai_compatible_defaults(
     assert config.morning_report_longitude is None
     assert config.morning_report_timezone is None
     assert config.morning_report_language is None
+    assert config.caldav_server_url is None
+    assert config.caldav_username is None
+    assert config.caldav_password is None
+    assert config.caldav_insecure_skip_verify is False
     assert config.missing_morning_report_settings() == (
         "MORNING_REPORT_LATITUDE",
         "MORNING_REPORT_LONGITUDE",
         "MORNING_REPORT_TIMEZONE",
         "MORNING_REPORT_LANGUAGE",
     )
+
+
+def test_from_env_prefers_caldav_password_over_baikal_password(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv("CALDAV_SERVER_URL", "https://baikal.example.test/dav.php/")
+    monkeypatch.setenv("CALDAV_USERNAME", "alice")
+    monkeypatch.setenv("CALDAV_PASSWORD", "primary-secret")
+    monkeypatch.setenv("BAIKAL_PASSWORD", "backup-secret")
+    monkeypatch.setattr(config_module, "project_root", lambda: tmp_path)
+
+    config = AppConfig.from_env()
+
+    assert config.caldav_password == "primary-secret"

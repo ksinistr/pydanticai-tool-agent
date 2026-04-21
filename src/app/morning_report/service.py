@@ -7,12 +7,15 @@ from zoneinfo import ZoneInfoNotFoundError
 
 from pydantic_ai import Agent
 
-from app.morning_report.models import MorningReportContext, MorningReportSettings, MorningReportSetup
+from app.morning_report.models import (
+    MorningReportContext,
+    MorningReportSettings,
+    MorningReportSetup,
+)
 
 
 class MorningReportContextBuilderProtocol(Protocol):
-    def build(self, settings: MorningReportSettings) -> MorningReportContext:
-        ...
+    def build(self, settings: MorningReportSettings) -> MorningReportContext: ...
 
 
 class MorningReportService:
@@ -150,10 +153,7 @@ def _weather_line(context: MorningReportContext, russian: bool) -> str | None:
             f"По погоде ближайшее окно начинается около {time_value}: "
             f"{weather}, {temp}°C, ветер {wind} км/ч."
         )
-    return (
-        f"Weather at the next window around {time_value}: "
-        f"{weather}, {temp}C, wind {wind} km/h."
-    )
+    return f"Weather at the next window around {time_value}: {weather}, {temp}C, wind {wind} km/h."
 
 
 def _is_russian(language: str | None) -> bool:

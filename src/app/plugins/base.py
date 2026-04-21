@@ -19,4 +19,3 @@ class AgentPlugin:
 
     def healthcheck(self) -> None:
         return None
-

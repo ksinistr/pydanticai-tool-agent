@@ -20,4 +20,3 @@ class ActivitiesQuery(BaseModel):
     oldest: str
     newest: str | None = None
     limit: int = Field(default=10, ge=1, le=50)
-

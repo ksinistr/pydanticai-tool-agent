@@ -42,8 +42,7 @@ class TelegramHandlers:
         if message is None or not await self._authorize(update):
             return
         await message.reply_text(
-            "Commands:\n/start\n/help\n/reset\n/morning_report\n\n"
-            "Example: What time is it in UTC?"
+            "Commands:\n/start\n/help\n/reset\n/morning_report\n\nExample: What time is it in UTC?"
         )
 
     async def reset(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -74,7 +73,9 @@ class TelegramHandlers:
             reply = await self._morning_report_service.generate()
         except Exception:
             logger.exception("Failed to build morning report")
-            await message.reply_text("The bot hit an internal error while building the morning report.")
+            await message.reply_text(
+                "The bot hit an internal error while building the morning report."
+            )
             return
 
         await message.reply_text(reply)

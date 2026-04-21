@@ -4,7 +4,11 @@ import argparse
 import json
 
 from app.config import AppConfig, project_root
-from app.plugins.route_planner.models import PointToPointRouteRequest, RoundTripRouteRequest, StravaSettings
+from app.plugins.route_planner.models import (
+    PointToPointRouteRequest,
+    RoundTripRouteRequest,
+    StravaSettings,
+)
 from app.plugins.route_planner.routing import RoutePlannerClient, RoutePlannerError
 from app.plugins.route_planner.service import RoutePlannerService
 from app.plugins.route_planner.strava import StravaError, StravaService
@@ -100,7 +104,9 @@ def main(service: RoutePlannerService | None = None) -> int:
                     )
                 )
             else:
-                print(json.dumps(strava_service.get_authenticated_athlete(), indent=2, sort_keys=True))
+                print(
+                    json.dumps(strava_service.get_authenticated_athlete(), indent=2, sort_keys=True)
+                )
     except (RoutePlannerError, StravaError, ValueError) as exc:
         parser.error(str(exc))
     return 0

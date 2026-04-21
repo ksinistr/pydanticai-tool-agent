@@ -13,6 +13,7 @@ Simple Telegram bot built with PydanticAI, an OpenAI-compatible provider, and a 
 - Optional `intervals_icu` plugin for wellness, weekly load progress, and activities
 - Optional `open_meteo` plugin for geocoding and weather forecasts
 - Optional `route_planner` plugin for GPX route generation via BRouter
+- Optional `caldav` plugin for Baikal-focused calendar discovery and event CRUD via CalDAV
 
 ## Setup
 
@@ -32,6 +33,8 @@ make install
 - `TELEGRAM_AUTHORIZED_USERS` as a comma-separated list of allowed Telegram usernames or numeric user IDs
 - `APP_PUBLIC_BASE_URL` if you want absolute clickable download links in web or Telegram replies
 - `INTERVALS_ICU_API_KEY` and `INTERVALS_ICU_ATHLETE_ID` if you enable the Intervals.icu plugin
+- `CALDAV_SERVER_URL` and `CALDAV_USERNAME` if you enable the CalDAV plugin
+- `CALDAV_PASSWORD` for CalDAV auth, or `BAIKAL_PASSWORD` as a fallback
 - `MORNING_REPORT_LATITUDE`, `MORNING_REPORT_LONGITUDE`, `MORNING_REPORT_TIMEZONE`, and `MORNING_REPORT_LANGUAGE` if you want `/morning_report`
 - `ROUTE_PLANNER_BROUTER_URL` if you enable the route planner plugin
 - `STRAVA_CLIENT_ID` and `STRAVA_CLIENT_SECRET` if you want route planner to avoid known roads using Strava history
@@ -77,6 +80,11 @@ uv run intervals-icu-tool fitness-status
 uv run intervals-icu-tool wellness --date 2026-04-19
 uv run intervals-icu-tool weekly-load-progress
 uv run intervals-icu-tool activities --oldest 2026-04-01 --newest 2026-04-19 --limit 5
+uv run caldav-tool calendars list
+uv run caldav-tool events list --calendar-id personal --from 2026-03-24T00:00:00Z --to 2026-03-31T23:59:59Z
+uv run caldav-tool events create --calendar-id personal --title "Team Sync" --start 2026-03-25T09:00:00Z --end 2026-03-25T09:30:00Z --description "Weekly sync"
+uv run caldav-tool events update --calendar-id personal --event-id 2026-03-25-team-sync.ics --description "Room 301"
+uv run caldav-tool events delete --calendar-id personal --event-id 2026-03-25-team-sync.ics
 uv run open-meteo-tool search --query "Limassol"
 uv run open-meteo-tool forecast --latitude 34.6841 --longitude 33.0379 --hours 12
 uv run route-planner-tool point-to-point --start-location "Paphos, Cyprus" --end-location "Limassol, Cyprus" --profile gravel
@@ -98,6 +106,15 @@ APP_PUBLIC_BASE_URL=https://agent.example.test
 INTERVALS_ICU_API_KEY=...
 INTERVALS_ICU_ATHLETE_ID=...
 ROUTE_PLANNER_BROUTER_URL=https://brouter.de/brouter
+```
+
+If you want CalDAV access, also set:
+
+```bash
+APP_ENABLED_PLUGINS=get_time,caldav
+CALDAV_SERVER_URL=https://baikal.example.test/dav.php/
+CALDAV_USERNAME=alice
+CALDAV_PASSWORD=...
 ```
 
 If you want round-trip planning to avoid familiar roads using your Strava history, also set:

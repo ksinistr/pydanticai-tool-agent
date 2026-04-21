@@ -124,7 +124,9 @@ def _shape_activities(items: list[dict]) -> list[dict]:
             _compact_dict(
                 {
                     "date": start[:10] if isinstance(start, str) else None,
-                    "start_time": start[11:16] if isinstance(start, str) and len(start) >= 16 else None,
+                    "start_time": start[11:16]
+                    if isinstance(start, str) and len(start) >= 16
+                    else None,
                     "sport": item.get("type"),
                     "name": item.get("name"),
                     "moving_minutes": _seconds_to_minutes(item.get("moving_time")),
@@ -181,9 +183,7 @@ def _shape_weather_hours(forecast: dict) -> list[dict]:
                     ),
                     "wind_speed": _rounded_number(_series_value(hourly, "wind_speed_10m", index)),
                     "wind_gust": _rounded_number(_series_value(hourly, "wind_gusts_10m", index)),
-                    "precipitation": _rounded_number(
-                        _series_value(hourly, "precipitation", index)
-                    ),
+                    "precipitation": _rounded_number(_series_value(hourly, "precipitation", index)),
                     "precipitation_probability": _rounded_number(
                         _series_value(hourly, "precipitation_probability", index)
                     ),

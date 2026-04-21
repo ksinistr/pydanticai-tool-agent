@@ -40,4 +40,3 @@ class GetTimePlugin(AgentPlugin):
 def build_plugin(config: AppConfig) -> GetTimePlugin:
     del config
     return GetTimePlugin(GetTimeService())
-

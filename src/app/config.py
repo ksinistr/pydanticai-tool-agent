@@ -30,6 +30,10 @@ class AppConfig:
     morning_report_longitude: float | None = None
     morning_report_timezone: str | None = None
     morning_report_language: str | None = None
+    caldav_server_url: str | None = None
+    caldav_username: str | None = None
+    caldav_password: str | None = None
+    caldav_insecure_skip_verify: bool = False
 
     @classmethod
     def from_env(cls) -> AppConfig:
@@ -58,16 +62,17 @@ class AppConfig:
             strava_redirect_uri=os.getenv("STRAVA_REDIRECT_URI", "http://localhost/exchange_token"),
             strava_data_dir=Path(
                 _clean(os.getenv("STRAVA_DATA_DIR"))
-                or str(
-                    Path.home() / ".local" / "share" / "pydanticai-tool-agent" / "strava"
-                )
+                or str(Path.home() / ".local" / "share" / "pydanticai-tool-agent" / "strava")
             ).expanduser(),
             morning_report_latitude=_parse_optional_float(os.getenv("MORNING_REPORT_LATITUDE")),
-            morning_report_longitude=_parse_optional_float(
-                os.getenv("MORNING_REPORT_LONGITUDE")
-            ),
+            morning_report_longitude=_parse_optional_float(os.getenv("MORNING_REPORT_LONGITUDE")),
             morning_report_timezone=_clean(os.getenv("MORNING_REPORT_TIMEZONE")),
             morning_report_language=_clean(os.getenv("MORNING_REPORT_LANGUAGE")),
+            caldav_server_url=_clean(os.getenv("CALDAV_SERVER_URL")),
+            caldav_username=_clean(os.getenv("CALDAV_USERNAME")),
+            caldav_password=_clean(os.getenv("CALDAV_PASSWORD"))
+            or _clean(os.getenv("BAIKAL_PASSWORD")),
+            caldav_insecure_skip_verify=_parse_bool(os.getenv("CALDAV_INSECURE_SKIP_VERIFY")),
         )
 
     def require_telegram_bot_token(self) -> str:
@@ -146,6 +151,19 @@ def _parse_optional_float(value: str | None) -> float | None:
     if cleaned is None:
         return None
     return float(cleaned)
+
+
+def _parse_bool(value: str | None, default: bool = False) -> bool:
+    cleaned = _clean(value)
+    if cleaned is None:
+        return default
+
+    normalized = cleaned.lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    raise ValueError(f"Invalid boolean value: {value}")
 
 
 def _strip_quotes(value: str) -> str:
