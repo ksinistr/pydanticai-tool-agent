@@ -66,7 +66,7 @@ def _build_setup(config: AppConfig) -> MorningReportSetup:
         settings = MorningReportSettings(
             latitude=float(config.morning_report_latitude),
             longitude=float(config.morning_report_longitude),
-            timezone=str(config.morning_report_timezone),
+            timezone=str(config.user_timezone),
             language=str(config.morning_report_language),
             holidays_calendar_id=config.morning_report_holidays_calendar_id,
             vacation_calendar_id=config.morning_report_vacation_calendar_id,

@@ -138,8 +138,8 @@ def _setup_error_message(missing_variables: tuple[str, ...], language: str | Non
 
 def _timezone_error_message(language: str | None) -> str:
     if _is_russian(language):
-        return "Утренний отчет не настроен: MORNING_REPORT_TIMEZONE задан некорректно."
-    return "Morning report is not configured correctly: MORNING_REPORT_TIMEZONE is invalid."
+        return "Утренний отчет не настроен: USER_TIMEZONE задан некорректно."
+    return "Morning report is not configured correctly: USER_TIMEZONE is invalid."
 
 
 def _both_sources_failed_message(context: MorningReportContext) -> str:

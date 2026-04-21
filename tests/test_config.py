@@ -37,7 +37,7 @@ def test_load_dotenv_reads_project_file(monkeypatch: pytest.MonkeyPatch, tmp_pat
                 "CALDAV_INSECURE_SKIP_VERIFY=true",
                 "MORNING_REPORT_LATITUDE=34.7765",
                 "MORNING_REPORT_LONGITUDE=32.4241",
-                "MORNING_REPORT_TIMEZONE=Asia/Nicosia",
+                "USER_TIMEZONE=Asia/Nicosia",
                 "MORNING_REPORT_LANGUAGE=ru",
                 "ROUTE_PLANNER_BROUTER_URL=http://127.0.0.1:17777/brouter",
                 "STRAVA_CLIENT_ID=strava-client",
@@ -69,7 +69,7 @@ def test_load_dotenv_reads_project_file(monkeypatch: pytest.MonkeyPatch, tmp_pat
     monkeypatch.delenv("CALDAV_INSECURE_SKIP_VERIFY", raising=False)
     monkeypatch.delenv("MORNING_REPORT_LATITUDE", raising=False)
     monkeypatch.delenv("MORNING_REPORT_LONGITUDE", raising=False)
-    monkeypatch.delenv("MORNING_REPORT_TIMEZONE", raising=False)
+    monkeypatch.delenv("USER_TIMEZONE", raising=False)
     monkeypatch.delenv("MORNING_REPORT_LANGUAGE", raising=False)
     monkeypatch.delenv("ROUTE_PLANNER_BROUTER_URL", raising=False)
     monkeypatch.delenv("STRAVA_CLIENT_ID", raising=False)
@@ -101,7 +101,7 @@ def test_load_dotenv_reads_project_file(monkeypatch: pytest.MonkeyPatch, tmp_pat
     assert config.caldav_insecure_skip_verify is True
     assert config.morning_report_latitude == 34.7765
     assert config.morning_report_longitude == 32.4241
-    assert config.morning_report_timezone == "Asia/Nicosia"
+    assert config.user_timezone == "Asia/Nicosia"
     assert config.morning_report_language == "ru"
     assert config.morning_report_holidays_calendar_id == DEFAULT_MORNING_REPORT_HOLIDAYS_CALENDAR_ID
     assert config.morning_report_vacation_calendar_id == DEFAULT_MORNING_REPORT_VACATION_CALENDAR_ID
@@ -128,7 +128,7 @@ def test_from_env_uses_openai_compatible_defaults(
     monkeypatch.delenv("CALDAV_INSECURE_SKIP_VERIFY", raising=False)
     monkeypatch.delenv("MORNING_REPORT_LATITUDE", raising=False)
     monkeypatch.delenv("MORNING_REPORT_LONGITUDE", raising=False)
-    monkeypatch.delenv("MORNING_REPORT_TIMEZONE", raising=False)
+    monkeypatch.delenv("USER_TIMEZONE", raising=False)
     monkeypatch.delenv("MORNING_REPORT_LANGUAGE", raising=False)
     monkeypatch.setattr(config_module, "project_root", lambda: tmp_path)
 
@@ -141,7 +141,7 @@ def test_from_env_uses_openai_compatible_defaults(
     assert config.openai_top_p is None
     assert config.morning_report_latitude is None
     assert config.morning_report_longitude is None
-    assert config.morning_report_timezone is None
+    assert config.user_timezone is None
     assert config.morning_report_language is None
     assert config.morning_report_holidays_calendar_id == DEFAULT_MORNING_REPORT_HOLIDAYS_CALENDAR_ID
     assert config.morning_report_vacation_calendar_id == DEFAULT_MORNING_REPORT_VACATION_CALENDAR_ID
@@ -152,7 +152,7 @@ def test_from_env_uses_openai_compatible_defaults(
     assert config.missing_morning_report_settings() == (
         "MORNING_REPORT_LATITUDE",
         "MORNING_REPORT_LONGITUDE",
-        "MORNING_REPORT_TIMEZONE",
+        "USER_TIMEZONE",
         "MORNING_REPORT_LANGUAGE",
     )
 

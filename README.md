@@ -35,7 +35,7 @@ make install
 - `INTERVALS_ICU_API_KEY` and `INTERVALS_ICU_ATHLETE_ID` if you enable the Intervals.icu plugin
 - `CALDAV_SERVER_URL` and `CALDAV_USERNAME` if you enable the CalDAV plugin
 - `CALDAV_PASSWORD` for CalDAV auth, or `BAIKAL_PASSWORD` as a fallback
-- `MORNING_REPORT_LATITUDE`, `MORNING_REPORT_LONGITUDE`, `MORNING_REPORT_TIMEZONE`, and `MORNING_REPORT_LANGUAGE` if you want `/morning_report`
+- `MORNING_REPORT_LATITUDE`, `MORNING_REPORT_LONGITUDE`, `USER_TIMEZONE`, and `MORNING_REPORT_LANGUAGE` if you want `/morning_report`
 - `MORNING_REPORT_HOLIDAYS_CALENDAR_ID` and `MORNING_REPORT_VACATION_CALENDAR_ID` if you want to override the default holiday and vacation calendars used by `/morning_report`
 - `ROUTE_PLANNER_BROUTER_URL` if you enable the route planner plugin
 - `STRAVA_CLIENT_ID` and `STRAVA_CLIENT_SECRET` if you want route planner to avoid known roads using Strava history
@@ -117,6 +117,7 @@ APP_ENABLED_PLUGINS=get_time,caldav
 CALDAV_SERVER_URL=https://baikal.example.test/dav.php/
 CALDAV_USERNAME=alice
 CALDAV_PASSWORD=...
+USER_TIMEZONE=Asia/Nicosia
 MORNING_REPORT_HOLIDAYS_CALENDAR_ID=7c61385b-fea4-4469-9067-07c85e977bcb
 MORNING_REPORT_VACATION_CALENDAR_ID=78d55081-ba84-4d8d-b873-264c18d0a3c0
 ```

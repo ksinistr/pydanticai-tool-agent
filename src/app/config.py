@@ -33,7 +33,7 @@ class AppConfig:
     strava_data_dir: Path
     morning_report_latitude: float | None = None
     morning_report_longitude: float | None = None
-    morning_report_timezone: str | None = None
+    user_timezone: str | None = None
     morning_report_language: str | None = None
     morning_report_holidays_calendar_id: str = DEFAULT_MORNING_REPORT_HOLIDAYS_CALENDAR_ID
     morning_report_vacation_calendar_id: str = DEFAULT_MORNING_REPORT_VACATION_CALENDAR_ID
@@ -73,7 +73,7 @@ class AppConfig:
             ).expanduser(),
             morning_report_latitude=_parse_optional_float(os.getenv("MORNING_REPORT_LATITUDE")),
             morning_report_longitude=_parse_optional_float(os.getenv("MORNING_REPORT_LONGITUDE")),
-            morning_report_timezone=_clean(os.getenv("MORNING_REPORT_TIMEZONE")),
+            user_timezone=_clean(os.getenv("USER_TIMEZONE")),
             morning_report_language=_clean(os.getenv("MORNING_REPORT_LANGUAGE")),
             morning_report_holidays_calendar_id=os.getenv(
                 "MORNING_REPORT_HOLIDAYS_CALENDAR_ID",
@@ -111,8 +111,8 @@ class AppConfig:
             missing.append("MORNING_REPORT_LATITUDE")
         if self.morning_report_longitude is None:
             missing.append("MORNING_REPORT_LONGITUDE")
-        if self.morning_report_timezone is None:
-            missing.append("MORNING_REPORT_TIMEZONE")
+        if self.user_timezone is None:
+            missing.append("USER_TIMEZONE")
         if self.morning_report_language is None:
             missing.append("MORNING_REPORT_LANGUAGE")
         return tuple(missing)

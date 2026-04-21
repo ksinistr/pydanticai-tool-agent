@@ -158,7 +158,7 @@ def test_service_returns_timezone_setup_error_for_invalid_timezone() -> None:
 
     reply = asyncio.run(service.generate())
 
-    assert "MORNING_REPORT_TIMEZONE" in reply
+    assert "USER_TIMEZONE" in reply
 
 
 def _make_context(

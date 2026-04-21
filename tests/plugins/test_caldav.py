@@ -7,6 +7,7 @@ from pathlib import Path
 
 import httpx
 import pytest
+from pydantic_ai import ModelRetry
 
 from app.config import AppConfig
 from app.plugins.caldav.client import CaldavClient, CaldavError
@@ -316,13 +317,13 @@ def test_build_caldav_plugin_requires_server_and_username() -> None:
 
 def test_caldav_plugin_builds_requests() -> None:
     service = FakeCaldavService()
-    plugin = CaldavPlugin(service)
+    plugin = CaldavPlugin(service, user_timezone="Asia/Nicosia")
 
     result = plugin.create_caldav_event(
         calendar_id="personal",
         title="Team Sync",
-        start="2026-03-25T09:00:00Z",
-        end="2026-03-25T09:30:00Z",
+        start="2026-03-25T09:00:00",
+        end="2026-03-25T09:30:00",
         description="Weekly sync",
     )
 
@@ -331,6 +332,51 @@ def test_caldav_plugin_builds_requests() -> None:
     assert service.last_request.calendar_id == "personal"
     assert service.last_request.title == "Team Sync"
     assert service.last_request.description == "Weekly sync"
+    assert service.last_request.start.isoformat() == "2026-03-25T09:00:00+02:00"
+    assert service.last_request.end.isoformat() == "2026-03-25T09:30:00+02:00"
+
+
+def test_caldav_plugin_accepts_naive_datetimes_in_user_timezone() -> None:
+    service = FakeCaldavService()
+    plugin = CaldavPlugin(service, user_timezone="Asia/Nicosia")
+
+    result = plugin.list_caldav_events(
+        calendar_id="vacation",
+        from_datetime="2026-04-01T00:00:00",
+        to_datetime="2026-04-30T23:59:59",
+    )
+
+    assert result == "ok"
+    assert isinstance(service.last_request, ListEventsRequest)
+    assert service.last_request.from_datetime.isoformat() == "2026-04-01T00:00:00+03:00"
+    assert service.last_request.to_datetime.isoformat() == "2026-04-30T23:59:59+03:00"
+
+
+def test_caldav_plugin_expands_date_only_month_boundaries() -> None:
+    service = FakeCaldavService()
+    plugin = CaldavPlugin(service, user_timezone="Asia/Nicosia")
+
+    result = plugin.list_caldav_events(
+        calendar_id="vacation",
+        from_datetime="2026-04-01",
+        to_datetime="2026-04-30",
+    )
+
+    assert result == "ok"
+    assert isinstance(service.last_request, ListEventsRequest)
+    assert service.last_request.from_datetime.isoformat() == "2026-04-01T00:00:00+03:00"
+    assert service.last_request.to_datetime.isoformat() == "2026-04-30T23:59:59+03:00"
+
+
+def test_caldav_plugin_retries_on_invalid_datetime_input() -> None:
+    plugin = CaldavPlugin(FakeCaldavService(), user_timezone="Asia/Nicosia")
+
+    with pytest.raises(ModelRetry, match="Use ISO 8601 datetime"):
+        plugin.list_caldav_events(
+            calendar_id="vacation",
+            from_datetime="april first",
+            to_datetime="2026-04-30",
+        )
 
 
 def test_caldav_plugin_returns_error_string() -> None:
