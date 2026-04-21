@@ -10,6 +10,7 @@ from telegram.ext import ContextTypes
 
 from app.agent.service import AgentService
 from app.bot.formatting import render_telegram_html
+from app.daily_training_advice.service import DailyTrainingAdviceService
 from app.morning_report.service import MorningReportService
 
 logger = logging.getLogger(__name__)
@@ -20,10 +21,12 @@ class TelegramHandlers:
         self,
         agent_service: AgentService,
         morning_report_service: MorningReportService | None = None,
+        daily_training_advice_service: DailyTrainingAdviceService | None = None,
         authorized_users: Iterable[str] = (),
     ) -> None:
         self._agent_service = agent_service
         self._morning_report_service = morning_report_service
+        self._daily_training_advice_service = daily_training_advice_service
         self._authorized_user_ids, self._authorized_usernames = _parse_authorized_users(
             authorized_users
         )
@@ -36,7 +39,7 @@ class TelegramHandlers:
         await self._reply_text(
             message,
             "Send me a message. I can answer normally, use tools when needed, "
-            "or generate /morning_report.",
+            "or generate /morning_report or /daily_training_advice.",
         )
 
     async def help(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -46,7 +49,7 @@ class TelegramHandlers:
             return
         await self._reply_text(
             message,
-            "Commands:\n/start\n/help\n/reset\n/morning_report\n\nExample: What time is it in UTC?",
+            "Commands:\n/start\n/help\n/reset\n/morning_report\n/daily_training_advice\n\nExample: What time is it in UTC?",
         )
 
     async def reset(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -79,6 +82,33 @@ class TelegramHandlers:
             logger.exception("Failed to build morning report")
             await self._reply_text(
                 message, "The bot hit an internal error while building the morning report."
+            )
+            return
+
+        await self._reply_text(message, reply)
+
+    async def daily_training_advice(
+        self,
+        update: Update,
+        context: ContextTypes.DEFAULT_TYPE,
+    ) -> None:
+        message = update.effective_message
+        if message is None or not await self._authorize(update):
+            return
+        if context.args:
+            await self._reply_text(message, "Usage: /daily_training_advice")
+            return
+        if self._daily_training_advice_service is None:
+            await self._reply_text(message, "Daily training advice is not available.")
+            return
+
+        try:
+            reply = await self._daily_training_advice_service.generate()
+        except Exception:
+            logger.exception("Failed to build daily training advice")
+            await self._reply_text(
+                message,
+                "The bot hit an internal error while building the daily training advice.",
             )
             return
 

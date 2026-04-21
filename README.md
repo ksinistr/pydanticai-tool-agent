@@ -10,6 +10,7 @@ Simple Telegram bot built with PydanticAI, an OpenAI-compatible provider, and a 
 - Per-plugin CLI entrypoints for isolated testing
 - Example `get_time` tool plugin
 - Native Telegram `/morning_report` command with a dedicated PydanticAI morning brief
+- Native Telegram `/daily_training_advice` command with a dedicated remaining-day training brief
 - Optional `intervals_icu` plugin for wellness, weekly load progress, and activities
 - Optional `open_meteo` plugin for geocoding and weather forecasts
 - Optional `route_planner` plugin for GPX route generation via BRouter
@@ -37,6 +38,7 @@ make install
 - `CALDAV_PASSWORD` for CalDAV auth, or `BAIKAL_PASSWORD` as a fallback
 - `MORNING_REPORT_LATITUDE`, `MORNING_REPORT_LONGITUDE`, `USER_TIMEZONE`, and `MORNING_REPORT_LANGUAGE` if you want `/morning_report`
 - `MORNING_REPORT_HOLIDAYS_CALENDAR_ID` and `MORNING_REPORT_VACATION_CALENDAR_ID` if you want to override the default holiday and vacation calendars used by `/morning_report`
+- The same `MORNING_REPORT_*` and `USER_TIMEZONE` values are also used by `/daily_training_advice`; no extra variables are required
 - `ROUTE_PLANNER_BROUTER_URL` if you enable the route planner plugin
 - `STRAVA_CLIENT_ID` and `STRAVA_CLIENT_SECRET` if you want route planner to avoid known roads using Strava history
 
@@ -50,6 +52,7 @@ make telegram
 
 Inside Telegram, `/morning_report` uses a dedicated morning-report flow and does not depend on the normal chat history.
 When CalDAV is configured, `/morning_report` also checks the holiday and vacation calendars before applying weekday workday constraints.
+`/daily_training_advice` is a separate flow that uses the same configuration values, but it adjusts the advice to the remaining part of the current local day and accounts for workouts already completed today in Intervals.icu.
 
 Start local web UI:
 

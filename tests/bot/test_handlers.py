@@ -53,7 +53,7 @@ def test_handle_text_allows_authorized_user_id() -> None:
     message.reply_document.assert_awaited_once()
 
 
-def test_help_lists_morning_report_command() -> None:
+def test_help_lists_standalone_advice_commands() -> None:
     service = SimpleNamespace(run=AsyncMock(), consume_artifacts=lambda session_id: [])
     handlers = TelegramHandlers(service)
     message = SimpleNamespace(reply_text=AsyncMock())
@@ -66,6 +66,7 @@ def test_help_lists_morning_report_command() -> None:
 
     reply = message.reply_text.await_args.args[0]
     assert "/morning_report" in reply
+    assert "/daily_training_advice" in reply
 
 
 def test_morning_report_uses_standalone_service() -> None:
@@ -102,6 +103,50 @@ def test_morning_report_rejects_arguments() -> None:
     morning_report_service.generate.assert_not_awaited()
     message.reply_text.assert_awaited_once_with(
         "Usage: /morning_report",
+        parse_mode=ParseMode.HTML,
+    )
+
+
+def test_daily_training_advice_uses_standalone_service() -> None:
+    agent_service = SimpleNamespace(run=AsyncMock(), consume_artifacts=lambda session_id: [])
+    daily_training_advice_service = SimpleNamespace(generate=AsyncMock(return_value="advice"))
+    handlers = TelegramHandlers(
+        agent_service,
+        daily_training_advice_service=daily_training_advice_service,
+    )
+    message = SimpleNamespace(reply_text=AsyncMock())
+    update = SimpleNamespace(
+        effective_message=message,
+        effective_user=SimpleNamespace(id=7, username="allowed_user"),
+    )
+    context = SimpleNamespace(args=[])
+
+    asyncio.run(handlers.daily_training_advice(update, context))
+
+    agent_service.run.assert_not_awaited()
+    daily_training_advice_service.generate.assert_awaited_once()
+    message.reply_text.assert_awaited_once_with("advice", parse_mode=ParseMode.HTML)
+
+
+def test_daily_training_advice_rejects_arguments() -> None:
+    agent_service = SimpleNamespace(run=AsyncMock(), consume_artifacts=lambda session_id: [])
+    daily_training_advice_service = SimpleNamespace(generate=AsyncMock(return_value="advice"))
+    handlers = TelegramHandlers(
+        agent_service,
+        daily_training_advice_service=daily_training_advice_service,
+    )
+    message = SimpleNamespace(reply_text=AsyncMock())
+    update = SimpleNamespace(
+        effective_message=message,
+        effective_user=SimpleNamespace(id=7, username="allowed_user"),
+    )
+    context = SimpleNamespace(args=["extra"])
+
+    asyncio.run(handlers.daily_training_advice(update, context))
+
+    daily_training_advice_service.generate.assert_not_awaited()
+    message.reply_text.assert_awaited_once_with(
+        "Usage: /daily_training_advice",
         parse_mode=ParseMode.HTML,
     )
 
