@@ -36,6 +36,7 @@ make install
 - `CALDAV_SERVER_URL` and `CALDAV_USERNAME` if you enable the CalDAV plugin
 - `CALDAV_PASSWORD` for CalDAV auth, or `BAIKAL_PASSWORD` as a fallback
 - `MORNING_REPORT_LATITUDE`, `MORNING_REPORT_LONGITUDE`, `MORNING_REPORT_TIMEZONE`, and `MORNING_REPORT_LANGUAGE` if you want `/morning_report`
+- `MORNING_REPORT_HOLIDAYS_CALENDAR_ID` and `MORNING_REPORT_VACATION_CALENDAR_ID` if you want to override the default holiday and vacation calendars used by `/morning_report`
 - `ROUTE_PLANNER_BROUTER_URL` if you enable the route planner plugin
 - `STRAVA_CLIENT_ID` and `STRAVA_CLIENT_SECRET` if you want route planner to avoid known roads using Strava history
 
@@ -48,6 +49,7 @@ make telegram
 ```
 
 Inside Telegram, `/morning_report` uses a dedicated morning-report flow and does not depend on the normal chat history.
+When CalDAV is configured, `/morning_report` also checks the holiday and vacation calendars before applying weekday workday constraints.
 
 Start local web UI:
 
@@ -115,6 +117,8 @@ APP_ENABLED_PLUGINS=get_time,caldav
 CALDAV_SERVER_URL=https://baikal.example.test/dav.php/
 CALDAV_USERNAME=alice
 CALDAV_PASSWORD=...
+MORNING_REPORT_HOLIDAYS_CALENDAR_ID=7c61385b-fea4-4469-9067-07c85e977bcb
+MORNING_REPORT_VACATION_CALENDAR_ID=78d55081-ba84-4d8d-b873-264c18d0a3c0
 ```
 
 If you want round-trip planning to avoid familiar roads using your Strava history, also set:

@@ -1,9 +1,14 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from app.morning_report.context import MorningReportContextBuilder
-from app.morning_report.models import MorningReportSettings
+from app.morning_report.models import (
+    DEFAULT_MORNING_REPORT_HOLIDAYS_CALENDAR_ID,
+    DEFAULT_MORNING_REPORT_VACATION_CALENDAR_ID,
+    MorningReportSettings,
+)
+from app.plugins.caldav.models import EventRecord
 
 
 class FakeIntervalsClient:
@@ -56,6 +61,27 @@ class FakeIntervalsClient:
         ]
 
 
+class FakeCaldavClient:
+    def list_events(self, request) -> list[EventRecord]:
+        assert request.from_datetime.isoformat() == "2026-04-20T00:00:00+03:00"
+        assert request.to_datetime.isoformat() == "2026-04-27T00:00:00+03:00"
+        if request.calendar_id == DEFAULT_MORNING_REPORT_HOLIDAYS_CALENDAR_ID:
+            return [
+                EventRecord(
+                    calendar_id=request.calendar_id,
+                    event_id="holiday.ics",
+                    uid="holiday-1",
+                    title="Easter Monday",
+                    description="",
+                    start=datetime(2026, 4, 20, tzinfo=UTC),
+                    end=datetime(2026, 4, 20, tzinfo=UTC),
+                    all_day=True,
+                )
+            ]
+        assert request.calendar_id == DEFAULT_MORNING_REPORT_VACATION_CALENDAR_ID
+        return []
+
+
 class FakeWeatherClient:
     def get_forecast(
         self,
@@ -84,10 +110,11 @@ class FakeWeatherClient:
         }
 
 
-def test_context_builder_shapes_intervals_and_weather_payloads() -> None:
+def test_context_builder_shapes_morning_report_payloads() -> None:
     builder = MorningReportContextBuilder(
         intervals_client=FakeIntervalsClient(),
         weather_client=FakeWeatherClient(),
+        caldav_client=FakeCaldavClient(),
         now=lambda timezone: datetime(2026, 4, 20, 6, 30, tzinfo=timezone),
     )
 
@@ -97,12 +124,18 @@ def test_context_builder_shapes_intervals_and_weather_payloads() -> None:
             longitude=32.4241,
             timezone="Asia/Nicosia",
             language="ru",
+            holidays_calendar_id=DEFAULT_MORNING_REPORT_HOLIDAYS_CALENDAR_ID,
+            vacation_calendar_id=DEFAULT_MORNING_REPORT_VACATION_CALENDAR_ID,
         )
     )
 
     assert context.anchor_date == "2026-04-20"
-    assert context.day_type == "workday"
+    assert context.day_type == "holiday"
+    assert context.workday_constraints_apply is False
     assert context.history_from == "2026-04-14"
+    assert context.calendar_from == "2026-04-20T00:00:00+03:00"
+    assert context.calendar_to == "2026-04-27T00:00:00+03:00"
+    assert context.calendar_error is None
     assert context.activities[0] == {
         "date": "2026-04-19",
         "start_time": "07:10",
@@ -115,6 +148,15 @@ def test_context_builder_shapes_intervals_and_weather_payloads() -> None:
         "avg_hr": 142,
     }
     assert context.wellness[0]["sleep_hours"] == 7.5
+    assert context.holidays == [
+        {
+            "title": "Easter Monday",
+            "all_day": True,
+            "start_date": "2026-04-20",
+            "end_date": "2026-04-20",
+        }
+    ]
+    assert context.vacation == []
     assert context.weather_hours[0] == {
         "time": "2026-04-20T06:00",
         "temp": 18.6,
@@ -126,3 +168,28 @@ def test_context_builder_shapes_intervals_and_weather_payloads() -> None:
         "weather_code": 0,
         "weather": "clear sky",
     }
+
+
+def test_context_builder_falls_back_to_weekday_when_calendar_is_unavailable() -> None:
+    builder = MorningReportContextBuilder(
+        intervals_client=FakeIntervalsClient(),
+        weather_client=FakeWeatherClient(),
+        caldav_client=None,
+        calendar_setup_error="CalDAV is not configured (CALDAV_SERVER_URL, CALDAV_USERNAME).",
+        now=lambda timezone: datetime(2026, 4, 20, 6, 30, tzinfo=timezone),
+    )
+
+    context = builder.build(
+        MorningReportSettings(
+            latitude=34.7765,
+            longitude=32.4241,
+            timezone="Asia/Nicosia",
+            language="en",
+            holidays_calendar_id=DEFAULT_MORNING_REPORT_HOLIDAYS_CALENDAR_ID,
+            vacation_calendar_id=DEFAULT_MORNING_REPORT_VACATION_CALENDAR_ID,
+        )
+    )
+
+    assert context.day_type == "workday"
+    assert context.workday_constraints_apply is True
+    assert context.calendar_error == "CalDAV is not configured (CALDAV_SERVER_URL, CALDAV_USERNAME)."

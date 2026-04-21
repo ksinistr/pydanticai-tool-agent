@@ -4,6 +4,11 @@ from dataclasses import dataclass
 import os
 from pathlib import Path
 
+from app.morning_report_defaults import (
+    DEFAULT_MORNING_REPORT_HOLIDAYS_CALENDAR_ID,
+    DEFAULT_MORNING_REPORT_VACATION_CALENDAR_ID,
+)
+
 
 @dataclass(frozen=True, slots=True)
 class AppConfig:
@@ -30,6 +35,8 @@ class AppConfig:
     morning_report_longitude: float | None = None
     morning_report_timezone: str | None = None
     morning_report_language: str | None = None
+    morning_report_holidays_calendar_id: str = DEFAULT_MORNING_REPORT_HOLIDAYS_CALENDAR_ID
+    morning_report_vacation_calendar_id: str = DEFAULT_MORNING_REPORT_VACATION_CALENDAR_ID
     caldav_server_url: str | None = None
     caldav_username: str | None = None
     caldav_password: str | None = None
@@ -68,6 +75,14 @@ class AppConfig:
             morning_report_longitude=_parse_optional_float(os.getenv("MORNING_REPORT_LONGITUDE")),
             morning_report_timezone=_clean(os.getenv("MORNING_REPORT_TIMEZONE")),
             morning_report_language=_clean(os.getenv("MORNING_REPORT_LANGUAGE")),
+            morning_report_holidays_calendar_id=os.getenv(
+                "MORNING_REPORT_HOLIDAYS_CALENDAR_ID",
+                DEFAULT_MORNING_REPORT_HOLIDAYS_CALENDAR_ID,
+            ),
+            morning_report_vacation_calendar_id=os.getenv(
+                "MORNING_REPORT_VACATION_CALENDAR_ID",
+                DEFAULT_MORNING_REPORT_VACATION_CALENDAR_ID,
+            ),
             caldav_server_url=_clean(os.getenv("CALDAV_SERVER_URL")),
             caldav_username=_clean(os.getenv("CALDAV_USERNAME")),
             caldav_password=_clean(os.getenv("CALDAV_PASSWORD"))

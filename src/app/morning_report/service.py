@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import json
 from typing import Protocol
 from zoneinfo import ZoneInfoNotFoundError
@@ -11,6 +10,7 @@ from app.morning_report.models import (
     MorningReportContext,
     MorningReportSettings,
     MorningReportSetup,
+    MorningReportStructuredOutput,
 )
 
 
@@ -21,7 +21,7 @@ class MorningReportContextBuilderProtocol(Protocol):
 class MorningReportService:
     def __init__(
         self,
-        agent: Agent[None, str],
+        agent: Agent[None, MorningReportStructuredOutput],
         context_builder: MorningReportContextBuilderProtocol,
         setup: MorningReportSetup,
         default_language: str | None = None,
@@ -40,7 +40,7 @@ class MorningReportService:
             return _setup_error_message((), self._default_language)
 
         try:
-            context = await asyncio.to_thread(self._context_builder.build, settings)
+            context = self._context_builder.build(settings)
         except ZoneInfoNotFoundError:
             return _timezone_error_message(settings.language)
         if not context.has_intervals() and not context.has_weather():
@@ -49,7 +49,7 @@ class MorningReportService:
             return _intervals_failed_message(context)
 
         result = await self._agent.run(_build_prompt(context))
-        return result.output
+        return _render_report(result.output)
 
 
 def _build_prompt(context: MorningReportContext) -> str:
@@ -58,6 +58,7 @@ def _build_prompt(context: MorningReportContext) -> str:
         "anchor_date": context.anchor_date,
         "weekday": context.weekday,
         "day_type": context.day_type,
+        "workday_constraints_apply": context.workday_constraints_apply,
         "timezone": context.timezone,
         "language": context.language,
         "location": {
@@ -68,10 +69,17 @@ def _build_prompt(context: MorningReportContext) -> str:
             "from": context.history_from,
             "to": context.history_to,
         },
+        "calendar_window": {
+            "from": context.calendar_from,
+            "to": context.calendar_to,
+        },
         "intervals_status": "ok" if context.has_intervals() else context.intervals_error,
+        "calendar_status": "ok" if context.has_calendar() else context.calendar_error,
         "weather_status": "ok" if context.has_weather() else context.weather_error,
         "wellness": context.wellness,
         "activities": context.activities,
+        "holidays": context.holidays,
+        "vacation": context.vacation,
         "weather_hours": context.weather_hours,
     }
 
@@ -79,15 +87,46 @@ def _build_prompt(context: MorningReportContext) -> str:
         [
             f"Language: {context.language}",
             (
-                "Write a short coach note for this morning. "
-                "Vary the opening. Make the note sound individual rather than templated. "
-                "State a clear readiness verdict, mention the best ride window if weather allows, "
-                "recommend one concrete session for today, and end with one caution or limit."
+                "Return structured output only. "
+                "Keep each list item short and standalone. "
+                "Use the explicit day_type and workday_constraints_apply fields instead of inferring from weekday alone."
             ),
             "Use the context exactly as provided:",
             json.dumps(payload, indent=2, ensure_ascii=False),
         ]
     )
+
+
+def _render_report(report: MorningReportStructuredOutput) -> str:
+    sections = [
+        ("Data Freshness", report.data_freshness),
+        ("Readiness", [f"{report.readiness_level.upper()}: {report.readiness_summary}"]),
+        ("Weather Impact", report.weather_impact),
+        ("Today Plan", report.today_plan),
+        ("Recovery", report.recovery),
+        ("Fueling/Hydration", report.fueling_hydration),
+        ("Workday Actions", report.workday_actions),
+        ("Caution", report.caution),
+    ]
+
+    rendered: list[str] = []
+    for title, lines in sections:
+        normalized = _normalize_lines(lines)
+        block = [f"**{title}**"]
+        block.extend(f"- {line}" for line in normalized)
+        rendered.append("\n".join(block))
+    return "\n\n".join(rendered)
+
+
+def _normalize_lines(lines: list[str]) -> list[str]:
+    normalized: list[str] = []
+    for line in lines:
+        cleaned = line.strip()
+        while cleaned.startswith(("-", "*", "•")):
+            cleaned = cleaned[1:].strip()
+        if cleaned:
+            normalized.append(cleaned)
+    return normalized or ["No details available."]
 
 
 def _setup_error_message(missing_variables: tuple[str, ...], language: str | None) -> str:
@@ -104,17 +143,17 @@ def _timezone_error_message(language: str | None) -> str:
 
 
 def _both_sources_failed_message(context: MorningReportContext) -> str:
+    sources = [
+        ("Intervals.icu", context.intervals_error),
+        ("Weather", context.weather_error),
+    ]
+    if context.calendar_error:
+        sources.append(("Calendar", context.calendar_error))
+
+    details = " ".join(f"{name}: {message}." for name, message in sources if message)
     if _is_russian(context.language):
-        return (
-            "Утренний отчет не смог получить свежие данные. "
-            f"Intervals.icu: {context.intervals_error}. "
-            f"Погода: {context.weather_error}."
-        )
-    return (
-        "Morning report could not fetch fresh data. "
-        f"Intervals.icu: {context.intervals_error}. "
-        f"Weather: {context.weather_error}."
-    )
+        return f"Утренний отчет не смог получить свежие данные. {details}"
+    return f"Morning report could not fetch fresh data. {details}"
 
 
 def _intervals_failed_message(context: MorningReportContext) -> str:
@@ -126,6 +165,9 @@ def _intervals_failed_message(context: MorningReportContext) -> str:
         weather_line = _weather_line(context, russian=True)
         if weather_line:
             message.append(weather_line)
+        calendar_line = _calendar_line(context, russian=True)
+        if calendar_line:
+            message.append(calendar_line)
         return " ".join(message)
 
     message = [
@@ -135,6 +177,9 @@ def _intervals_failed_message(context: MorningReportContext) -> str:
     weather_line = _weather_line(context, russian=False)
     if weather_line:
         message.append(weather_line)
+    calendar_line = _calendar_line(context, russian=False)
+    if calendar_line:
+        message.append(calendar_line)
     return " ".join(message)
 
 
@@ -154,6 +199,31 @@ def _weather_line(context: MorningReportContext, russian: bool) -> str | None:
             f"{weather}, {temp}°C, ветер {wind} км/ч."
         )
     return f"Weather at the next window around {time_value}: {weather}, {temp}C, wind {wind} km/h."
+
+
+def _calendar_line(context: MorningReportContext, russian: bool) -> str | None:
+    if context.has_calendar():
+        return None
+    if russian:
+        if context.workday_constraints_apply:
+            return (
+                "Календарь праздников и отпусков недоступен, поэтому ограничения рабочего дня "
+                "определены по дню недели."
+            )
+        return (
+            "Календарь праздников и отпусков недоступен, но сегодня и так день полной доступности "
+            "по обычному расписанию."
+        )
+
+    if context.workday_constraints_apply:
+        return (
+            "Holiday and vacation calendars are unavailable, so workday constraints were inferred "
+            "from the weekday."
+        )
+    return (
+        "Holiday and vacation calendars are unavailable, but today is still treated as a "
+        "full-availability day from the normal schedule."
+    )
 
 
 def _is_russian(language: str | None) -> bool:

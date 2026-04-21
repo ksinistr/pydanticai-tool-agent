@@ -6,6 +6,10 @@ import pytest
 
 import app.config as config_module
 from app.config import AppConfig, load_dotenv
+from app.morning_report.models import (
+    DEFAULT_MORNING_REPORT_HOLIDAYS_CALENDAR_ID,
+    DEFAULT_MORNING_REPORT_VACATION_CALENDAR_ID,
+)
 
 
 def test_load_dotenv_reads_project_file(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -72,6 +76,7 @@ def test_load_dotenv_reads_project_file(monkeypatch: pytest.MonkeyPatch, tmp_pat
     monkeypatch.delenv("STRAVA_CLIENT_SECRET", raising=False)
     monkeypatch.delenv("STRAVA_REDIRECT_URI", raising=False)
     monkeypatch.delenv("STRAVA_DATA_DIR", raising=False)
+    monkeypatch.setattr(config_module, "project_root", lambda: tmp_path)
 
     load_dotenv(env_file)
     config = AppConfig.from_env()
@@ -98,6 +103,8 @@ def test_load_dotenv_reads_project_file(monkeypatch: pytest.MonkeyPatch, tmp_pat
     assert config.morning_report_longitude == 32.4241
     assert config.morning_report_timezone == "Asia/Nicosia"
     assert config.morning_report_language == "ru"
+    assert config.morning_report_holidays_calendar_id == DEFAULT_MORNING_REPORT_HOLIDAYS_CALENDAR_ID
+    assert config.morning_report_vacation_calendar_id == DEFAULT_MORNING_REPORT_VACATION_CALENDAR_ID
     assert config.route_planner_brouter_url == "http://127.0.0.1:17777/brouter"
     assert config.strava_client_id == "strava-client"
     assert config.strava_client_secret == "strava-secret"
@@ -136,6 +143,8 @@ def test_from_env_uses_openai_compatible_defaults(
     assert config.morning_report_longitude is None
     assert config.morning_report_timezone is None
     assert config.morning_report_language is None
+    assert config.morning_report_holidays_calendar_id == DEFAULT_MORNING_REPORT_HOLIDAYS_CALENDAR_ID
+    assert config.morning_report_vacation_calendar_id == DEFAULT_MORNING_REPORT_VACATION_CALENDAR_ID
     assert config.caldav_server_url is None
     assert config.caldav_username is None
     assert config.caldav_password is None
