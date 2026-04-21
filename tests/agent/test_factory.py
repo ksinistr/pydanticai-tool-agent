@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 
 from pydantic_ai.models.openai import OpenAIChatModel
 
-from app.agent.factory import INSTRUCTIONS, build_model
+from app.agent.factory import INSTRUCTIONS, _date_context_instruction, build_model
 from app.config import AppConfig
 
 
@@ -13,6 +14,18 @@ def test_agent_instructions_define_default_weather_location() -> None:
     assert "weather forecast requests" in INSTRUCTIONS
     assert "GPX download URLs" in INSTRUCTIONS
     assert "without rebuilding it from the filename" in INSTRUCTIONS
+
+
+def test_date_context_instruction_uses_local_date_weekday_and_year() -> None:
+    instruction = _date_context_instruction(
+        "Asia/Nicosia",
+        now=lambda timezone: datetime(2026, 4, 21, 10, 15, tzinfo=timezone),
+    )
+
+    assert "2026-04-21" in instruction
+    assert "(Tuesday)" in instruction
+    assert "Asia/Nicosia" in instruction
+    assert "assume 2026" in instruction
 
 
 def test_build_model_uses_openai_compatible_provider() -> None:
