@@ -5,9 +5,11 @@ from pathlib import Path
 from typing import Iterable
 
 from telegram import Update
+from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
 from app.agent.service import AgentService
+from app.bot.formatting import render_telegram_html
 from app.morning_report.service import MorningReportService
 
 logger = logging.getLogger(__name__)
@@ -31,9 +33,10 @@ class TelegramHandlers:
         message = update.effective_message
         if message is None or not await self._authorize(update):
             return
-        await message.reply_text(
+        await self._reply_text(
+            message,
             "Send me a message. I can answer normally, use tools when needed, "
-            "or generate /morning_report."
+            "or generate /morning_report.",
         )
 
     async def help(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -41,8 +44,9 @@ class TelegramHandlers:
         message = update.effective_message
         if message is None or not await self._authorize(update):
             return
-        await message.reply_text(
-            "Commands:\n/start\n/help\n/reset\n/morning_report\n\nExample: What time is it in UTC?"
+        await self._reply_text(
+            message,
+            "Commands:\n/start\n/help\n/reset\n/morning_report\n\nExample: What time is it in UTC?",
         )
 
     async def reset(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -52,7 +56,7 @@ class TelegramHandlers:
         if message is None or chat is None or not await self._authorize(update):
             return
         self._agent_service.reset(str(chat.id))
-        await message.reply_text("Conversation history cleared.")
+        await self._reply_text(message, "Conversation history cleared.")
 
     async def morning_report(
         self,
@@ -63,22 +67,22 @@ class TelegramHandlers:
         if message is None or not await self._authorize(update):
             return
         if context.args:
-            await message.reply_text("Usage: /morning_report")
+            await self._reply_text(message, "Usage: /morning_report")
             return
         if self._morning_report_service is None:
-            await message.reply_text("Morning report is not available.")
+            await self._reply_text(message, "Morning report is not available.")
             return
 
         try:
             reply = await self._morning_report_service.generate()
         except Exception:
             logger.exception("Failed to build morning report")
-            await message.reply_text(
-                "The bot hit an internal error while building the morning report."
+            await self._reply_text(
+                message, "The bot hit an internal error while building the morning report."
             )
             return
 
-        await message.reply_text(reply)
+        await self._reply_text(message, reply)
 
     async def handle_text(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         del context
@@ -92,10 +96,13 @@ class TelegramHandlers:
             reply = await self._agent_service.run(str(chat.id), message.text)
         except Exception:
             logger.exception("Failed to process Telegram message")
-            await message.reply_text("The bot hit an internal error while processing that message.")
+            await self._reply_text(
+                message,
+                "The bot hit an internal error while processing that message.",
+            )
             return
 
-        await message.reply_text(reply)
+        await self._reply_text(message, reply)
         for artifact in self._agent_service.consume_artifacts(str(chat.id)):
             if not artifact.path.exists():
                 logger.warning("Generated artifact missing: %s", artifact.path)
@@ -119,8 +126,11 @@ class TelegramHandlers:
             return True
 
         logger.warning("Rejected Telegram user id=%s username=%s", user.id, user.username)
-        await message.reply_text("You are not authorized to use this bot.")
+        await self._reply_text(message, "You are not authorized to use this bot.")
         return False
+
+    async def _reply_text(self, message: object, text: str) -> None:
+        await message.reply_text(render_telegram_html(text), parse_mode=ParseMode.HTML)
 
 
 def _parse_authorized_users(values: Iterable[str]) -> tuple[frozenset[int], frozenset[str]]:

@@ -5,6 +5,9 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
+from telegram.constants import ParseMode
+
+from app.bot.formatting import render_telegram_html
 from app.bot.handlers import TelegramHandlers
 
 
@@ -21,7 +24,10 @@ def test_handle_text_rejects_unauthorized_username() -> None:
     asyncio.run(handlers.handle_text(update, None))
 
     service.run.assert_not_awaited()
-    message.reply_text.assert_awaited_once_with("You are not authorized to use this bot.")
+    message.reply_text.assert_awaited_once_with(
+        "You are not authorized to use this bot.",
+        parse_mode=ParseMode.HTML,
+    )
 
 
 def test_handle_text_allows_authorized_user_id() -> None:
@@ -43,7 +49,7 @@ def test_handle_text_allows_authorized_user_id() -> None:
     asyncio.run(handlers.handle_text(update, None))
 
     service.run.assert_awaited_once_with("42", "hello")
-    message.reply_text.assert_awaited_once_with("ok")
+    message.reply_text.assert_awaited_once_with("ok", parse_mode=ParseMode.HTML)
     message.reply_document.assert_awaited_once()
 
 
@@ -77,7 +83,7 @@ def test_morning_report_uses_standalone_service() -> None:
 
     agent_service.run.assert_not_awaited()
     morning_report_service.generate.assert_awaited_once()
-    message.reply_text.assert_awaited_once_with("report")
+    message.reply_text.assert_awaited_once_with("report", parse_mode=ParseMode.HTML)
 
 
 def test_morning_report_rejects_arguments() -> None:
@@ -94,4 +100,28 @@ def test_morning_report_rejects_arguments() -> None:
     asyncio.run(handlers.morning_report(update, context))
 
     morning_report_service.generate.assert_not_awaited()
-    message.reply_text.assert_awaited_once_with("Usage: /morning_report")
+    message.reply_text.assert_awaited_once_with(
+        "Usage: /morning_report",
+        parse_mode=ParseMode.HTML,
+    )
+
+
+def test_handle_text_formats_basic_markdown() -> None:
+    service = SimpleNamespace(
+        run=AsyncMock(return_value="**Title**\n- item\n`code`\n[site](https://example.com)"),
+        consume_artifacts=lambda session_id: [],
+    )
+    handlers = TelegramHandlers(service)
+    message = SimpleNamespace(text="hello", reply_text=AsyncMock(), reply_document=AsyncMock())
+    update = SimpleNamespace(
+        effective_message=message,
+        effective_chat=SimpleNamespace(id=42),
+        effective_user=SimpleNamespace(id=7, username="allowed_user"),
+    )
+
+    asyncio.run(handlers.handle_text(update, None))
+
+    message.reply_text.assert_awaited_once_with(
+        render_telegram_html("**Title**\n- item\n`code`\n[site](https://example.com)"),
+        parse_mode=ParseMode.HTML,
+    )
