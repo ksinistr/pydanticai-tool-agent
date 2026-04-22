@@ -14,7 +14,12 @@ from app.bot.handlers import TelegramHandlers
 def test_handle_text_rejects_unauthorized_username() -> None:
     service = SimpleNamespace(run=AsyncMock(), consume_artifacts=lambda session_id: [])
     handlers = TelegramHandlers(service, authorized_users=("@allowed_user",))
-    message = SimpleNamespace(text="hello", reply_text=AsyncMock(), reply_document=AsyncMock())
+    message = SimpleNamespace(
+        text="hello",
+        reply_text=AsyncMock(),
+        reply_document=AsyncMock(),
+        reply_photo=AsyncMock(),
+    )
     update = SimpleNamespace(
         effective_message=message,
         effective_chat=SimpleNamespace(id=42),
@@ -39,7 +44,12 @@ def test_handle_text_allows_authorized_user_id() -> None:
         ],
     )
     handlers = TelegramHandlers(service, authorized_users=("123456789",))
-    message = SimpleNamespace(text="hello", reply_text=AsyncMock(), reply_document=AsyncMock())
+    message = SimpleNamespace(
+        text="hello",
+        reply_text=AsyncMock(),
+        reply_document=AsyncMock(),
+        reply_photo=AsyncMock(),
+    )
     update = SimpleNamespace(
         effective_message=message,
         effective_chat=SimpleNamespace(id=42),
@@ -51,6 +61,7 @@ def test_handle_text_allows_authorized_user_id() -> None:
     service.run.assert_awaited_once_with("42", "hello")
     message.reply_text.assert_awaited_once_with("ok", parse_mode=ParseMode.HTML)
     message.reply_document.assert_awaited_once()
+    message.reply_photo.assert_not_awaited()
 
 
 def test_help_lists_standalone_advice_commands() -> None:
@@ -157,7 +168,12 @@ def test_handle_text_formats_basic_markdown() -> None:
         consume_artifacts=lambda session_id: [],
     )
     handlers = TelegramHandlers(service)
-    message = SimpleNamespace(text="hello", reply_text=AsyncMock(), reply_document=AsyncMock())
+    message = SimpleNamespace(
+        text="hello",
+        reply_text=AsyncMock(),
+        reply_document=AsyncMock(),
+        reply_photo=AsyncMock(),
+    )
     update = SimpleNamespace(
         effective_message=message,
         effective_chat=SimpleNamespace(id=42),
@@ -170,3 +186,31 @@ def test_handle_text_formats_basic_markdown() -> None:
         render_telegram_html("**Title**\n- item\n`code`\n[site](https://example.com)"),
         parse_mode=ParseMode.HTML,
     )
+
+
+def test_handle_text_sends_png_artifacts_as_photos(tmp_path: Path) -> None:
+    artifact_path = tmp_path / "route_map.png"
+    artifact_path.write_bytes(b"png")
+    service = SimpleNamespace(
+        run=AsyncMock(return_value="ok"),
+        consume_artifacts=lambda session_id: [
+            SimpleNamespace(path=artifact_path, filename=artifact_path.name)
+        ],
+    )
+    handlers = TelegramHandlers(service)
+    message = SimpleNamespace(
+        text="hello",
+        reply_text=AsyncMock(),
+        reply_document=AsyncMock(),
+        reply_photo=AsyncMock(),
+    )
+    update = SimpleNamespace(
+        effective_message=message,
+        effective_chat=SimpleNamespace(id=42),
+        effective_user=SimpleNamespace(id=7, username="allowed_user"),
+    )
+
+    asyncio.run(handlers.handle_text(update, None))
+
+    message.reply_photo.assert_awaited_once()
+    message.reply_document.assert_not_awaited()

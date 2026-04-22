@@ -3,16 +3,25 @@ from __future__ import annotations
 import json
 import sys
 from dataclasses import dataclass
+from pathlib import Path
 
 import httpx
 import pytest
 
 from app.plugins.route_planner.cli import main as cli_main
+from app.plugins.route_planner.gpx_images import (
+    GpxImageSummary,
+    RenderedGpxImages,
+    ensure_jpeg_size_limit,
+    ensure_png_size_limit,
+)
 from app.plugins.route_planner.models import (
+    GpxImageRequest,
     PointToPointRouteRequest,
     RoundTripRouteRequest,
     StravaSettings,
 )
+from app.plugins.route_planner.plugin import RoutePlannerPlugin
 from app.plugins.route_planner.round_trip import RoundTripCandidate, RoundTripResult
 from app.plugins.route_planner.routing import RoutePlannerClient
 from app.plugins.route_planner.service import RoutePlannerService
@@ -147,6 +156,43 @@ class FakeRoutePlannerCliService:
         self.last_request = None
 
     def plan_round_trip_route_gpx(self, request: RoundTripRouteRequest) -> str:
+        self.last_request = request
+        return '{"ok":true}'
+
+    def render_route_gpx_images(self, request: GpxImageRequest) -> str:
+        self.last_request = request
+        return '{"images":true}'
+
+
+class FakeGpxImageRenderer:
+    def __init__(self) -> None:
+        self.last_path: Path | None = None
+        self.last_track_color: str | None = None
+
+    def render(self, gpx_path: Path, track_color: str = "red") -> RenderedGpxImages:
+        self.last_path = gpx_path
+        self.last_track_color = track_color
+        return RenderedGpxImages(
+            map_path=Path("/tmp/rendered_map.jpg"),
+            map_filename="rendered_map.jpg",
+            elevation_profile_path=Path("/tmp/rendered_profile.png"),
+            elevation_profile_filename="rendered_profile.png",
+            summary=GpxImageSummary(
+                point_count=42,
+                distance_km=58.6,
+                ascent_m=792.0,
+                descent_m=792.0,
+                min_elevation_m=10.0,
+                max_elevation_m=805.0,
+            ),
+        )
+
+
+class FakeRoutePlannerRenderService:
+    def __init__(self) -> None:
+        self.last_request: GpxImageRequest | None = None
+
+    def render_route_gpx_images(self, request: GpxImageRequest) -> str:
         self.last_request = request
         return '{"ok":true}'
 
@@ -361,6 +407,87 @@ def test_route_planner_service_adds_strava_avoidance_summary(monkeypatch) -> Non
     assert route_client.geocode_calls == []
 
 
+def test_route_planner_service_renders_images_from_download_url(
+    monkeypatch, tmp_path: Path
+) -> None:
+    import app.plugins.route_planner.service as service_module
+
+    gpx_path = tmp_path / "sample_route.gpx"
+    gpx_path.write_text("<gpx/>")
+
+    renderer = FakeGpxImageRenderer()
+
+    monkeypatch.setattr(
+        service_module.artifact_store,
+        "resolve_download",
+        lambda token: (
+            type("FakeArtifact", (), {"path": gpx_path})() if token == "route-gpx" else None
+        ),
+    )
+    monkeypatch.setattr(
+        service_module.artifact_store,
+        "register_file",
+        lambda path, filename=None: type(
+            "RegisteredArtifact",
+            (),
+            {
+                "filename": filename or Path(path).name,
+                "download_url": f"/downloads/{filename or Path(path).name}",
+            },
+        )(),
+    )
+
+    service = RoutePlannerService(
+        route_client=FakeRoutePlannerClient(),
+        image_renderer=renderer,
+        public_base_url="https://agent.example.test",
+    )
+
+    payload = json.loads(
+        service.render_route_gpx_images(
+            GpxImageRequest(gpx_reference="/downloads/route-gpx", track_color="red")
+        )
+    )
+
+    assert renderer.last_path == gpx_path
+    assert renderer.last_track_color == "red"
+    assert payload == {
+        "source": {
+            "filename": "sample_route.gpx",
+            "gpx_reference": "/downloads/route-gpx",
+        },
+        "map": {
+            "tiles": "OpenTopoMap",
+            "track_color": "red",
+            "download_url": "https://agent.example.test/downloads/rendered_map.jpg",
+        },
+        "elevation_profile": {
+            "download_url": "https://agent.example.test/downloads/rendered_profile.png",
+        },
+        "summary": {
+            "point_count": 42,
+            "distance_km": 58.6,
+            "ascent_m": 792.0,
+            "descent_m": 792.0,
+            "min_elevation_m": 10.0,
+            "max_elevation_m": 805.0,
+        },
+    }
+
+
+def test_route_planner_plugin_builds_gpx_image_request() -> None:
+    service = FakeRoutePlannerRenderService()
+    plugin = RoutePlannerPlugin(service)
+
+    result = plugin.render_route_gpx_images("/downloads/example", track_color="crimson")
+
+    assert result == '{"ok":true}'
+    assert service.last_request == GpxImageRequest(
+        gpx_reference="/downloads/example",
+        track_color="crimson",
+    )
+
+
 def test_route_planner_client_uses_hiking_mountain_brouter_profile(tmp_path) -> None:
     requested_profiles: list[str] = []
 
@@ -465,8 +592,7 @@ def test_route_planner_client_builds_brouter_web_url(tmp_path) -> None:
     )
 
     assert (
-        url
-        == "https://brouter-web.example.test/#map=14/34.7295/32.7310/standard"
+        url == "https://brouter-web.example.test/#map=14/34.7295/32.7310/standard"
         "&lonlats=32.424000,34.775000;33.038000,34.684000&profile=quaelnix-gravel"
     )
     route_client.close()
@@ -510,6 +636,72 @@ def test_route_planner_cli_builds_round_trip_coordinate_request(
         profile="gravel",
         avoid_known_roads=True,
     )
+
+
+def test_route_planner_cli_builds_render_images_request(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    service = FakeRoutePlannerCliService()
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "route-planner-tool",
+            "render-images",
+            "--gpx-reference",
+            "/downloads/example",
+            "--track-color",
+            "red",
+        ],
+    )
+
+    exit_code = cli_main(service)
+    output = capsys.readouterr()
+
+    assert exit_code == 0
+    assert output.out.strip() == '{"images":true}'
+    assert service.last_request == GpxImageRequest(
+        gpx_reference="/downloads/example",
+        track_color="red",
+    )
+
+
+def test_ensure_jpeg_size_limit_reduces_large_image(tmp_path: Path) -> None:
+    image = pytest.importorskip("PIL.Image")
+
+    path = tmp_path / "map.jpg"
+    generated = image.new("RGB", (1600, 1200))
+    pixels = generated.load()
+    for x in range(generated.width):
+        for y in range(generated.height):
+            pixels[x, y] = ((x * 17 + y * 3) % 256, (x * 7 + y * 13) % 256, (x * 5 + y * 11) % 256)
+    generated.save(path, format="JPEG", quality=95)
+
+    ensure_jpeg_size_limit(path, 64 * 1024)
+
+    assert path.stat().st_size <= 64 * 1024
+
+
+def test_ensure_png_size_limit_reduces_large_image(tmp_path: Path) -> None:
+    image = pytest.importorskip("PIL.Image")
+
+    path = tmp_path / "profile.png"
+    generated = image.new("RGBA", (1600, 1000))
+    pixels = generated.load()
+    for x in range(generated.width):
+        for y in range(generated.height):
+            pixels[x, y] = (
+                (x * 19 + y * 5) % 256,
+                (x * 3 + y * 23) % 256,
+                (x * 11 + y * 7) % 256,
+                255,
+            )
+    generated.save(path, format="PNG")
+
+    ensure_png_size_limit(path, 96 * 1024)
+
+    assert path.stat().st_size <= 96 * 1024
 
 
 def test_strava_service_builds_authorize_url_and_extracts_code(tmp_path) -> None:

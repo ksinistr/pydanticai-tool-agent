@@ -33,6 +33,11 @@ class RoundTripRouteRequest(BaseModel):
     avoid_known_roads: bool = False
 
 
+class GpxImageRequest(BaseModel):
+    gpx_reference: str = Field(min_length=1, max_length=2048)
+    track_color: str = Field(default="red", min_length=1, max_length=40)
+
+
 class RoutePlannerSettings(BaseModel):
     brouter_url: str = Field(min_length=1)
     brouter_web_url: str | None = None

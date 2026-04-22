@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import mimetypes
+
 import uvicorn
 from starlette.applications import Starlette
 from starlette.responses import FileResponse, PlainTextResponse, Response
@@ -21,9 +23,10 @@ def create_app(config: AppConfig | None = None):
         artifact = artifact_store.resolve_download(token)
         if artifact is None or not artifact.path.exists():
             return PlainTextResponse("File not found.", status_code=404)
+        media_type, _ = mimetypes.guess_type(artifact.filename)
         return FileResponse(
             artifact.path,
-            media_type="application/gpx+xml",
+            media_type=media_type or "application/octet-stream",
             filename=artifact.filename,
         )
 

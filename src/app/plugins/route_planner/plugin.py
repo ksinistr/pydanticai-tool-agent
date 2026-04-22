@@ -7,7 +7,9 @@ from pydantic_ai import Agent
 from app.config import AppConfig, project_root
 from app.plugins.base import AgentPlugin, PluginCli
 from app.plugins.route_planner.cli import main as cli_main
+from app.plugins.route_planner.gpx_images import GpxImageError, GpxImageRenderer
 from app.plugins.route_planner.models import (
+    GpxImageRequest,
     PointToPointRouteRequest,
     RoundTripRouteRequest,
     RoutePlannerSettings,
@@ -27,6 +29,7 @@ class RoutePlannerPlugin(AgentPlugin):
     def register(self, agent: Agent[None, str]) -> None:
         agent.tool_plain(self.plan_point_to_point_route_gpx)
         agent.tool_plain(self.plan_round_trip_route_gpx)
+        agent.tool_plain(self.render_route_gpx_images)
 
     def build_cli(self) -> PluginCli:
         return partial(cli_main, self._service)
@@ -83,10 +86,24 @@ class RoutePlannerPlugin(AgentPlugin):
         )
         return self._run(lambda: self._service.plan_round_trip_route_gpx(request))
 
+    def render_route_gpx_images(
+        self,
+        gpx_reference: str,
+        track_color: str = "red",
+    ) -> str:
+        """Render two PNG images from a GPX file.
+
+        Args:
+            gpx_reference: GPX download URL returned by this agent or a local GPX filepath.
+            track_color: Matplotlib color for the track line and elevation profile.
+        """
+        request = GpxImageRequest(gpx_reference=gpx_reference, track_color=track_color)
+        return self._run(lambda: self._service.render_route_gpx_images(request))
+
     def _run(self, operation) -> str:
         try:
             return operation()
-        except (RoutePlannerError, StravaError, ValueError) as exc:
+        except (GpxImageError, RoutePlannerError, StravaError, ValueError) as exc:
             return f"Route planner error: {exc}"
 
 
@@ -118,6 +135,7 @@ def build_plugin(config: AppConfig) -> RoutePlannerPlugin:
         RoutePlannerService(
             route_client=route_client,
             strava_service=strava_service,
+            image_renderer=GpxImageRenderer(route_settings.output_dir),
             public_base_url=config.public_base_url,
             brouter_web_url=route_settings.brouter_web_url,
         )

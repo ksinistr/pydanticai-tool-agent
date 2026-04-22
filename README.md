@@ -14,6 +14,7 @@ Simple Telegram bot built with PydanticAI, an OpenAI-compatible provider, and a 
 - Optional `intervals_icu` plugin for wellness, weekly load progress, and activities
 - Optional `open_meteo` plugin for geocoding and weather forecasts
 - Optional `route_planner` plugin for GPX route generation via BRouter
+- Static GPX image rendering with an OpenTopoMap route map and elevation profile
 - Optional `caldav` plugin for Baikal-focused calendar discovery and event CRUD via CalDAV
 
 ## Setup
@@ -94,12 +95,14 @@ uv run open-meteo-tool search --query "Limassol"
 uv run open-meteo-tool forecast --latitude 34.6841 --longitude 33.0379 --hours 12
 uv run route-planner-tool point-to-point --start-location "Paphos, Cyprus" --end-location "Limassol, Cyprus" --profile gravel
 uv run route-planner-tool round-trip --start-latitude 34.7750 --start-longitude 32.4240 --max-total-km 60 --max-elevation-m 800 --profile gravel
+uv run route-planner-tool render-images --gpx-reference output/route_planner/example.gpx --track-color red
 uv run route-planner-tool strava-auth-url
 uv run route-planner-tool strava-exchange --code-or-url "http://localhost/exchange_token?code=..."
 uv run route-planner-tool strava-sync
 ```
 
 For round-trip routing, resolve place names to coordinates first, for example with `uv run open-meteo-tool search --query "Paphos"`.
+The image renderer can consume a local GPX path or a `/downloads/...` GPX artifact URL returned by the agent.
 
 ## Extend With More Tools
 

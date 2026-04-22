@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import mimetypes
 from pathlib import Path
 from typing import Iterable
 
@@ -138,7 +139,11 @@ class TelegramHandlers:
                 logger.warning("Generated artifact missing: %s", artifact.path)
                 continue
             with Path(artifact.path).open("rb") as file_handle:
-                await message.reply_document(document=file_handle, filename=artifact.filename)
+                media_type, _ = mimetypes.guess_type(artifact.filename)
+                if media_type and media_type.startswith("image/"):
+                    await message.reply_photo(photo=file_handle, filename=artifact.filename)
+                else:
+                    await message.reply_document(document=file_handle, filename=artifact.filename)
 
     async def _authorize(self, update: Update) -> bool:
         if not self._authorized_user_ids and not self._authorized_usernames:

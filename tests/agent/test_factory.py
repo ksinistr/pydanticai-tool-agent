@@ -15,7 +15,7 @@ def test_agent_instructions_define_default_weather_location() -> None:
     assert "34.76795" in INSTRUCTIONS
     assert "32.43145" in INSTRUCTIONS
     assert "route-planning requests" in INSTRUCTIONS
-    assert "GPX download URLs" in INSTRUCTIONS
+    assert "tool returns download URLs" in INSTRUCTIONS
     assert "without rebuilding it from the filename" in INSTRUCTIONS
 
 

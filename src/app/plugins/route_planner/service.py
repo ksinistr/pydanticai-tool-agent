@@ -3,8 +3,14 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from app.config import project_root
 from app.artifacts import artifact_store
-from app.plugins.route_planner.models import PointToPointRouteRequest, RoundTripRouteRequest
+from app.plugins.route_planner.gpx_images import GpxImageRenderer, resolve_gpx_reference
+from app.plugins.route_planner.models import (
+    GpxImageRequest,
+    PointToPointRouteRequest,
+    RoundTripRouteRequest,
+)
 from app.plugins.route_planner.round_trip import ELEVATION_PENALTY_WEIGHT, RoundTripPipeline
 from app.plugins.route_planner.routing import RoutePlannerClient
 from app.plugins.route_planner.strava import StravaService
@@ -16,11 +22,13 @@ class RoutePlannerService:
         self,
         route_client: RoutePlannerClient,
         strava_service: StravaService | None = None,
+        image_renderer: GpxImageRenderer | None = None,
         public_base_url: str | None = None,
         brouter_web_url: str | None = None,
     ) -> None:
         self._route_client = route_client
         self._strava_service = strava_service
+        self._image_renderer = image_renderer
         self._public_base_url = public_base_url.rstrip("/") if public_base_url else None
         self._brouter_web_url = brouter_web_url.rstrip("/") if brouter_web_url else None
 
@@ -147,6 +155,51 @@ class RoutePlannerService:
                 "search_radius_km": round(strava_selection.search_radius_km, 2),
             }
         return _to_json(payload)
+
+    def render_route_gpx_images(self, request: GpxImageRequest) -> str:
+        if self._image_renderer is None:
+            raise ValueError("GPX image rendering is not configured for this deployment.")
+
+        gpx_path = resolve_gpx_reference(
+            request.gpx_reference,
+            root_dir=project_root(),
+            artifact_lookup=artifact_store.resolve_download,
+        )
+        rendered = self._image_renderer.render(gpx_path, track_color=request.track_color)
+        map_artifact = artifact_store.register_file(rendered.map_path, rendered.map_filename)
+        profile_artifact = artifact_store.register_file(
+            rendered.elevation_profile_path,
+            rendered.elevation_profile_filename,
+        )
+
+        return _to_json(
+            _compact_dict(
+                {
+                    "source": {
+                        "filename": gpx_path.name,
+                        "gpx_reference": request.gpx_reference,
+                    },
+                    "map": {
+                        "tiles": "OpenTopoMap",
+                        "track_color": request.track_color,
+                        "download_url": self._download_url(map_artifact.download_url),
+                    },
+                    "elevation_profile": {
+                        "download_url": self._download_url(profile_artifact.download_url),
+                    },
+                    "summary": _compact_dict(
+                        {
+                            "point_count": rendered.summary.point_count,
+                            "distance_km": rendered.summary.distance_km,
+                            "ascent_m": rendered.summary.ascent_m,
+                            "descent_m": rendered.summary.descent_m,
+                            "min_elevation_m": rendered.summary.min_elevation_m,
+                            "max_elevation_m": rendered.summary.max_elevation_m,
+                        }
+                    ),
+                }
+            )
+        )
 
     def _gpx_attachment(self, filepath: str, filename: str) -> dict:
         artifact = artifact_store.register_file(Path(filepath), filename)

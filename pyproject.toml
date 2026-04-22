@@ -9,7 +9,10 @@ description = "Simple Telegram bot with PydanticAI, OpenAI-compatible models, an
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "gpxo",
     "httpx",
+    "matplotlib",
+    "pillow",
     "pydantic-ai-slim[openai]",
     "python-telegram-bot",
     "starlette",

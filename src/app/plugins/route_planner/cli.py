@@ -4,7 +4,9 @@ import argparse
 import json
 
 from app.config import AppConfig, project_root
+from app.plugins.route_planner.gpx_images import GpxImageError, GpxImageRenderer
 from app.plugins.route_planner.models import (
+    GpxImageRequest,
     PointToPointRouteRequest,
     RoundTripRouteRequest,
     StravaSettings,
@@ -44,6 +46,10 @@ def build_parser() -> argparse.ArgumentParser:
     round_trip.add_argument("--profile", default="gravel")
     round_trip.add_argument("--avoid-known-roads", action="store_true")
 
+    render_images = subparsers.add_parser("render-images")
+    render_images.add_argument("--gpx-reference", required=True)
+    render_images.add_argument("--track-color", default="red")
+
     subparsers.add_parser("strava-auth-url")
 
     strava_exchange = subparsers.add_parser("strava-exchange")
@@ -59,7 +65,7 @@ def main(service: RoutePlannerService | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args()
 
-    if args.command in {"point-to-point", "round-trip"}:
+    if args.command in {"point-to-point", "round-trip", "render-images"}:
         service = service or build_service_from_env()
 
     try:
@@ -84,6 +90,15 @@ def main(service: RoutePlannerService | None = None) -> int:
                         max_elevation_m=args.max_elevation_m,
                         profile=args.profile,
                         avoid_known_roads=args.avoid_known_roads,
+                    )
+                )
+            )
+        elif args.command == "render-images":
+            print(
+                service.render_route_gpx_images(
+                    GpxImageRequest(
+                        gpx_reference=args.gpx_reference,
+                        track_color=args.track_color,
                     )
                 )
             )
@@ -121,7 +136,7 @@ def main(service: RoutePlannerService | None = None) -> int:
                 print(
                     json.dumps(strava_service.get_authenticated_athlete(), indent=2, sort_keys=True)
                 )
-    except (RoutePlannerError, StravaError, ValueError) as exc:
+    except (GpxImageError, RoutePlannerError, StravaError, ValueError) as exc:
         parser.error(str(exc))
     return 0
 
@@ -139,6 +154,7 @@ def build_service_from_env() -> RoutePlannerService:
     return RoutePlannerService(
         route_client=route_client,
         strava_service=strava_service,
+        image_renderer=GpxImageRenderer(project_root() / "output" / "route_planner"),
         public_base_url=config.public_base_url,
         brouter_web_url=config.route_planner_brouter_web_url,
     )
