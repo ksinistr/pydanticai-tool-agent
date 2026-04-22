@@ -31,6 +31,7 @@ class AppConfig:
     strava_client_secret: str | None
     strava_redirect_uri: str
     strava_data_dir: Path
+    route_planner_brouter_web_url: str | None = None
     morning_report_latitude: float | None = None
     morning_report_longitude: float | None = None
     user_timezone: str | None = None
@@ -60,10 +61,7 @@ class AppConfig:
             intervals_icu_api_key=_clean(os.getenv("INTERVALS_ICU_API_KEY")),
             intervals_icu_athlete_id=_clean(os.getenv("INTERVALS_ICU_ATHLETE_ID")),
             intervals_icu_base_url=os.getenv("INTERVALS_ICU_BASE_URL", "https://intervals.icu"),
-            route_planner_brouter_url=os.getenv(
-                "ROUTE_PLANNER_BROUTER_URL",
-                "https://brouter.de/brouter",
-            ),
+            route_planner_brouter_url=os.getenv("BROUTER_URL", "https://brouter.de/brouter"),
             strava_client_id=_clean(os.getenv("STRAVA_CLIENT_ID")),
             strava_client_secret=_clean(os.getenv("STRAVA_CLIENT_SECRET")),
             strava_redirect_uri=os.getenv("STRAVA_REDIRECT_URI", "http://localhost/exchange_token"),
@@ -71,6 +69,7 @@ class AppConfig:
                 _clean(os.getenv("STRAVA_DATA_DIR"))
                 or str(Path.home() / ".local" / "share" / "pydanticai-tool-agent" / "strava")
             ).expanduser(),
+            route_planner_brouter_web_url=_clean(os.getenv("BROUTER_WEB_URL")),
             morning_report_latitude=_parse_optional_float(os.getenv("MORNING_REPORT_LATITUDE")),
             morning_report_longitude=_parse_optional_float(os.getenv("MORNING_REPORT_LONGITUDE")),
             user_timezone=_clean(os.getenv("USER_TIMEZONE")),

@@ -66,6 +66,22 @@ class FakeRoutePlannerClient:
             "filename": "coast_ride.gpx",
         }
 
+    def build_brouter_web_url(
+        self,
+        waypoints: list[tuple[float, float]],
+        bike_profile: str,
+        brouter_web_url: str | None,
+        zoom: int = 14,
+    ) -> str | None:
+        assert waypoints == [(34.775, 32.424), (34.684, 33.038)]
+        assert bike_profile == "gravel"
+        assert brouter_web_url == "https://brouter-web.example.test"
+        assert zoom == 14
+        return (
+            "https://brouter-web.example.test/#map=14/34.7295/32.7310/standard"
+            "&lonlats=32.424000,34.775000;33.038000,34.684000&profile=quaelnix-gravel"
+        )
+
 
 @dataclass
 class FakeStravaSelection:
@@ -159,6 +175,7 @@ def test_route_planner_service_builds_point_to_point_payload(monkeypatch) -> Non
     service = RoutePlannerService(
         route_client,
         public_base_url="https://agent.example.test",
+        brouter_web_url="https://brouter-web.example.test",
     )
 
     payload = json.loads(
@@ -176,6 +193,10 @@ def test_route_planner_service_builds_point_to_point_payload(monkeypatch) -> Non
         "gpx": {
             "download_url": "https://agent.example.test/downloads/fake-point",
         },
+        "brouter_web_url": (
+            "https://brouter-web.example.test/#map=14/34.7295/32.7310/standard"
+            "&lonlats=32.424000,34.775000;33.038000,34.684000&profile=quaelnix-gravel"
+        ),
         "route": {
             "name": "coast_ride",
             "profile": "gravel",
@@ -311,6 +332,27 @@ def test_route_planner_client_uses_hiking_mountain_brouter_profile(tmp_path) -> 
 
     assert requested_profiles == ["hiking-mountain"]
     assert result["profile"] == "hiking-mountain"
+    route_client.close()
+
+
+def test_route_planner_client_builds_brouter_web_url(tmp_path) -> None:
+    route_client = RoutePlannerClient(
+        brouter_url="http://127.0.0.1:17777/brouter",
+        geocoder_user_agent="pydanticai-tool-agent/0.1",
+        output_dir=tmp_path,
+    )
+
+    url = route_client.build_brouter_web_url(
+        waypoints=[(34.775, 32.424), (34.684, 33.038)],
+        bike_profile="gravel",
+        brouter_web_url="https://brouter-web.example.test/",
+    )
+
+    assert (
+        url
+        == "https://brouter-web.example.test/#map=14/34.7295/32.7310/standard"
+        "&lonlats=32.424000,34.775000;33.038000,34.684000&profile=quaelnix-gravel"
+    )
     route_client.close()
 
 

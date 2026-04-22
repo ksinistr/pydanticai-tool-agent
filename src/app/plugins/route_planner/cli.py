@@ -140,6 +140,7 @@ def build_service_from_env() -> RoutePlannerService:
         route_client=route_client,
         strava_service=strava_service,
         public_base_url=config.public_base_url,
+        brouter_web_url=config.route_planner_brouter_web_url,
     )
 
 

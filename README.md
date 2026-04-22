@@ -39,7 +39,7 @@ make install
 - `MORNING_REPORT_LATITUDE`, `MORNING_REPORT_LONGITUDE`, `USER_TIMEZONE`, and `MORNING_REPORT_LANGUAGE` if you want `/morning_report`
 - `MORNING_REPORT_HOLIDAYS_CALENDAR_ID` and `MORNING_REPORT_VACATION_CALENDAR_ID` if you want to override the default holiday and vacation calendars used by `/morning_report`
 - The same `MORNING_REPORT_*` and `USER_TIMEZONE` values are also used by `/daily_training_advice`; no extra variables are required
-- `ROUTE_PLANNER_BROUTER_URL` if you enable the route planner plugin
+- `BROUTER_URL` if you enable the route planner plugin
 - `STRAVA_CLIENT_ID` and `STRAVA_CLIENT_SECRET` if you want route planner to avoid known roads using Strava history
 
 ## Run
@@ -112,7 +112,8 @@ APP_ENABLED_PLUGINS=get_time,intervals_icu,open_meteo,route_planner
 APP_PUBLIC_BASE_URL=https://agent.example.test
 INTERVALS_ICU_API_KEY=...
 INTERVALS_ICU_ATHLETE_ID=...
-ROUTE_PLANNER_BROUTER_URL=https://brouter.de/brouter
+BROUTER_URL=https://brouter.de/brouter
+BROUTER_WEB_URL=https://brouter.de/brouter-web
 ```
 
 If you want CalDAV access, also set:

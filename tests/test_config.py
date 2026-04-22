@@ -39,7 +39,8 @@ def test_load_dotenv_reads_project_file(monkeypatch: pytest.MonkeyPatch, tmp_pat
                 "MORNING_REPORT_LONGITUDE=32.4241",
                 "USER_TIMEZONE=Asia/Nicosia",
                 "MORNING_REPORT_LANGUAGE=ru",
-                "ROUTE_PLANNER_BROUTER_URL=http://127.0.0.1:17777/brouter",
+                "BROUTER_URL=http://127.0.0.1:17777/brouter",
+                "BROUTER_WEB_URL=http://127.0.0.1:8080",
                 "STRAVA_CLIENT_ID=strava-client",
                 "STRAVA_CLIENT_SECRET=strava-secret",
                 "STRAVA_REDIRECT_URI=http://localhost/exchange_token",
@@ -71,7 +72,8 @@ def test_load_dotenv_reads_project_file(monkeypatch: pytest.MonkeyPatch, tmp_pat
     monkeypatch.delenv("MORNING_REPORT_LONGITUDE", raising=False)
     monkeypatch.delenv("USER_TIMEZONE", raising=False)
     monkeypatch.delenv("MORNING_REPORT_LANGUAGE", raising=False)
-    monkeypatch.delenv("ROUTE_PLANNER_BROUTER_URL", raising=False)
+    monkeypatch.delenv("BROUTER_URL", raising=False)
+    monkeypatch.delenv("BROUTER_WEB_URL", raising=False)
     monkeypatch.delenv("STRAVA_CLIENT_ID", raising=False)
     monkeypatch.delenv("STRAVA_CLIENT_SECRET", raising=False)
     monkeypatch.delenv("STRAVA_REDIRECT_URI", raising=False)
@@ -106,6 +108,7 @@ def test_load_dotenv_reads_project_file(monkeypatch: pytest.MonkeyPatch, tmp_pat
     assert config.morning_report_holidays_calendar_id == DEFAULT_MORNING_REPORT_HOLIDAYS_CALENDAR_ID
     assert config.morning_report_vacation_calendar_id == DEFAULT_MORNING_REPORT_VACATION_CALENDAR_ID
     assert config.route_planner_brouter_url == "http://127.0.0.1:17777/brouter"
+    assert config.route_planner_brouter_web_url == "http://127.0.0.1:8080"
     assert config.strava_client_id == "strava-client"
     assert config.strava_client_secret == "strava-secret"
     assert config.strava_redirect_uri == "http://localhost/exchange_token"

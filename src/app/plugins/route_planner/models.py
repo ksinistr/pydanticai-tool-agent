@@ -35,6 +35,7 @@ class RoundTripRouteRequest(BaseModel):
 
 class RoutePlannerSettings(BaseModel):
     brouter_url: str = Field(min_length=1)
+    brouter_web_url: str | None = None
     output_dir: Path
     geocoder_user_agent: str = Field(min_length=3)
 

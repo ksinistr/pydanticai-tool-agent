@@ -176,6 +176,26 @@ class RoutePlannerClient:
             "filename": filename,
         }
 
+    def build_brouter_web_url(
+        self,
+        waypoints: list[tuple[float, float]],
+        bike_profile: str,
+        brouter_web_url: str | None,
+        zoom: int = 14,
+    ) -> str | None:
+        if not brouter_web_url or len(waypoints) < 2:
+            return None
+
+        average_latitude = sum(latitude for latitude, _ in waypoints) / len(waypoints)
+        average_longitude = sum(longitude for _, longitude in waypoints) / len(waypoints)
+        lonlats = ";".join(f"{longitude:.6f},{latitude:.6f}" for latitude, longitude in waypoints)
+        profile = BROUTER_PROFILES.get(bike_profile, "trekking")
+        return (
+            f"{brouter_web_url.rstrip('/')}/#map="
+            f"{zoom}/{average_latitude:.4f}/{average_longitude:.4f}/standard"
+            f"&lonlats={lonlats}&profile={profile}"
+        )
+
     def estimate_brouter_query_length(
         self,
         lonlats: str,

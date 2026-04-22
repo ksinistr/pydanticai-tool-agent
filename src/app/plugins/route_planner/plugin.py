@@ -93,6 +93,7 @@ class RoutePlannerPlugin(AgentPlugin):
 def build_plugin(config: AppConfig) -> RoutePlannerPlugin:
     route_settings = RoutePlannerSettings(
         brouter_url=config.route_planner_brouter_url,
+        brouter_web_url=config.route_planner_brouter_web_url,
         output_dir=project_root() / "output" / "route_planner",
         geocoder_user_agent="pydanticai-tool-agent/0.1",
     )
@@ -118,5 +119,6 @@ def build_plugin(config: AppConfig) -> RoutePlannerPlugin:
             route_client=route_client,
             strava_service=strava_service,
             public_base_url=config.public_base_url,
+            brouter_web_url=route_settings.brouter_web_url,
         )
     )

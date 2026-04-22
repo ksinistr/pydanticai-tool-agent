@@ -17,10 +17,12 @@ class RoutePlannerService:
         route_client: RoutePlannerClient,
         strava_service: StravaService | None = None,
         public_base_url: str | None = None,
+        brouter_web_url: str | None = None,
     ) -> None:
         self._route_client = route_client
         self._strava_service = strava_service
         self._public_base_url = public_base_url.rstrip("/") if public_base_url else None
+        self._brouter_web_url = brouter_web_url.rstrip("/") if brouter_web_url else None
 
     def plan_point_to_point_route_gpx(self, request: PointToPointRouteRequest) -> str:
         start = self._route_client.geocode_location(request.start_location)
@@ -40,21 +42,28 @@ class RoutePlannerService:
         )
         artifact = artifact_store.register_file(Path(gpx["filepath"]), gpx["filename"])
         return _to_json(
-            {
-                "route": {
-                    "name": route_name,
-                    "profile": request.profile,
-                    "start": _compact_location(start),
-                    "end": _compact_location(end),
-                    "distance_km": route.get("distance_km"),
-                    "duration_hours": route.get("duration_hours"),
-                    "ascent_m": route.get("elevation", {}).get("ascent_m"),
-                    "descent_m": route.get("elevation", {}).get("descent_m"),
-                },
-                "gpx": {
-                    "download_url": self._download_url(artifact.download_url),
-                },
-            }
+            _compact_dict(
+                {
+                    "route": {
+                        "name": route_name,
+                        "profile": request.profile,
+                        "start": _compact_location(start),
+                        "end": _compact_location(end),
+                        "distance_km": route.get("distance_km"),
+                        "duration_hours": route.get("duration_hours"),
+                        "ascent_m": route.get("elevation", {}).get("ascent_m"),
+                        "descent_m": route.get("elevation", {}).get("descent_m"),
+                    },
+                    "gpx": {
+                        "download_url": self._download_url(artifact.download_url),
+                    },
+                    "brouter_web_url": self._route_client.build_brouter_web_url(
+                        waypoints=[(start["lat"], start["lon"]), (end["lat"], end["lon"])],
+                        bike_profile=request.profile,
+                        brouter_web_url=self._brouter_web_url,
+                    ),
+                }
+            )
         )
 
     def plan_round_trip_route_gpx(self, request: RoundTripRouteRequest) -> str:
