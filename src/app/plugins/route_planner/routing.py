@@ -13,6 +13,7 @@ BROUTER_PROFILES = {
     "gravel": "quaelnix-gravel",
     "trekking": "trekking",
     "mountain": "mtb",
+    "hiking-mountain": "hiking-mountain",
     "mtb": "mtb",
     "safety": "safety",
     "shortest": "shortest",

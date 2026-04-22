@@ -93,11 +93,13 @@ uv run caldav-tool events delete --calendar-id personal --event-id 2026-03-25-te
 uv run open-meteo-tool search --query "Limassol"
 uv run open-meteo-tool forecast --latitude 34.6841 --longitude 33.0379 --hours 12
 uv run route-planner-tool point-to-point --start-location "Paphos, Cyprus" --end-location "Limassol, Cyprus" --profile gravel
-uv run route-planner-tool round-trip --start-location "Paphos, Cyprus" --max-total-km 60 --max-elevation-m 800 --profile gravel
+uv run route-planner-tool round-trip --start-latitude 34.7750 --start-longitude 32.4240 --max-total-km 60 --max-elevation-m 800 --profile gravel
 uv run route-planner-tool strava-auth-url
 uv run route-planner-tool strava-exchange --code-or-url "http://localhost/exchange_token?code=..."
 uv run route-planner-tool strava-sync
 ```
+
+For round-trip routing, resolve place names to coordinates first, for example with `uv run open-meteo-tool search --query "Paphos"`.
 
 ## Extend With More Tools
 

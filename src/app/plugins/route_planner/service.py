@@ -58,17 +58,17 @@ class RoutePlannerService:
         )
 
     def plan_round_trip_route_gpx(self, request: RoundTripRouteRequest) -> str:
+        start_coords = (request.start_latitude, request.start_longitude)
         strava_selection = None
         if request.avoid_known_roads:
             if self._strava_service is None:
                 raise ValueError("Strava support is not configured for this deployment.")
 
-            probe_start = self._route_client.geocode_location(request.start_location)
             probe_radii = _derive_round_trip_radii(request.max_total_km)
             strava_selection = build_round_trip_strava_nogos(
                 self._strava_service,
                 self._route_client,
-                (probe_start["lat"], probe_start["lon"]),
+                start_coords,
                 request.max_total_km,
                 probe_radii,
             )
@@ -82,7 +82,7 @@ class RoutePlannerService:
             pipeline = RoundTripPipeline(route_client=self._route_client)
 
         result = pipeline.execute(
-            start_location=request.start_location,
+            start_coords=start_coords,
             max_total_km=request.max_total_km,
             max_elevation_m=request.max_elevation_m,
             profile=request.profile,

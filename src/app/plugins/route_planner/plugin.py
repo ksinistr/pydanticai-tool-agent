@@ -43,7 +43,7 @@ class RoutePlannerPlugin(AgentPlugin):
         Args:
             start_location: Human-readable start place.
             end_location: Human-readable destination place.
-            profile: Routing profile like road, gravel, trekking, or mountain.
+            profile: Routing profile like road, gravel, trekking, mountain, or hiking-mountain.
             route_name: Optional GPX route name.
         """
         request = PointToPointRouteRequest(
@@ -56,23 +56,26 @@ class RoutePlannerPlugin(AgentPlugin):
 
     def plan_round_trip_route_gpx(
         self,
-        start_location: str,
+        start_latitude: float,
+        start_longitude: float,
         max_total_km: float,
         max_elevation_m: float | None = None,
         profile: str = "gravel",
         avoid_known_roads: bool = False,
     ) -> str:
-        """Build a round-trip GPX route from one start point.
+        """Build a round-trip GPX route from one start coordinate pair.
 
         Args:
-            start_location: Human-readable start place.
+            start_latitude: Start latitude in decimal degrees.
+            start_longitude: Start longitude in decimal degrees.
             max_total_km: Maximum total route distance in km.
             max_elevation_m: Optional ascent cap in meters.
-            profile: Routing profile like road, gravel, trekking, or mountain.
+            profile: Routing profile like road, gravel, trekking, mountain, or hiking-mountain.
             avoid_known_roads: Prefer unfamiliar roads using cached Strava history.
         """
         request = RoundTripRouteRequest(
-            start_location=start_location,
+            start_latitude=start_latitude,
+            start_longitude=start_longitude,
             max_total_km=max_total_km,
             max_elevation_m=max_elevation_m,
             profile=profile,

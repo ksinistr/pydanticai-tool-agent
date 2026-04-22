@@ -12,6 +12,9 @@ from app.config import AppConfig
 def test_agent_instructions_define_default_weather_location() -> None:
     assert "Paphos, Cyprus" in INSTRUCTIONS
     assert "weather forecast requests" in INSTRUCTIONS
+    assert "34.76795" in INSTRUCTIONS
+    assert "32.43145" in INSTRUCTIONS
+    assert "route-planning requests" in INSTRUCTIONS
     assert "GPX download URLs" in INSTRUCTIONS
     assert "without rebuilding it from the filename" in INSTRUCTIONS
 

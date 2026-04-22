@@ -25,7 +25,20 @@ def build_parser() -> argparse.ArgumentParser:
     point_to_point.add_argument("--route-name")
 
     round_trip = subparsers.add_parser("round-trip")
-    round_trip.add_argument("--start-location", required=True)
+    round_trip.add_argument(
+        "--start-latitude",
+        "--start-lat",
+        dest="start_latitude",
+        type=float,
+        required=True,
+    )
+    round_trip.add_argument(
+        "--start-longitude",
+        "--start-lon",
+        dest="start_longitude",
+        type=float,
+        required=True,
+    )
     round_trip.add_argument("--max-total-km", type=float, required=True)
     round_trip.add_argument("--max-elevation-m", type=float)
     round_trip.add_argument("--profile", default="gravel")
@@ -65,7 +78,8 @@ def main(service: RoutePlannerService | None = None) -> int:
             print(
                 service.plan_round_trip_route_gpx(
                     RoundTripRouteRequest(
-                        start_location=args.start_location,
+                        start_latitude=args.start_latitude,
+                        start_longitude=args.start_longitude,
                         max_total_km=args.max_total_km,
                         max_elevation_m=args.max_elevation_m,
                         profile=args.profile,

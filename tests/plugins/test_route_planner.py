@@ -1,20 +1,30 @@
 from __future__ import annotations
 
 import json
+import sys
 from dataclasses import dataclass
 
+import httpx
+import pytest
+
+from app.plugins.route_planner.cli import main as cli_main
 from app.plugins.route_planner.models import (
     PointToPointRouteRequest,
     RoundTripRouteRequest,
     StravaSettings,
 )
 from app.plugins.route_planner.round_trip import RoundTripCandidate, RoundTripResult
+from app.plugins.route_planner.routing import RoutePlannerClient
 from app.plugins.route_planner.service import RoutePlannerService
 from app.plugins.route_planner.strava import StravaService
 
 
 class FakeRoutePlannerClient:
+    def __init__(self) -> None:
+        self.geocode_calls: list[str] = []
+
     def geocode_location(self, location_name: str) -> dict:
+        self.geocode_calls.append(location_name)
         mapping = {
             "Paphos, Cyprus": {"name": "Paphos, Cyprus", "lat": 34.775, "lon": 32.424},
             "Limassol, Cyprus": {"name": "Limassol, Cyprus", "lat": 34.684, "lon": 33.038},
@@ -76,12 +86,12 @@ class FakeRoundTripPipeline:
 
     def execute(
         self,
-        start_location: str,
+        start_coords: tuple[float, float],
         max_total_km: float,
         max_elevation_m: float | None,
         profile: str,
     ) -> RoundTripResult:
-        assert start_location == "Paphos, Cyprus"
+        assert start_coords == (34.775, 32.424)
         assert max_total_km == 60
         assert max_elevation_m == 800
         assert profile == "gravel"
@@ -106,7 +116,7 @@ class FakeRoundTripPipeline:
         )
         return RoundTripResult(
             success=True,
-            start_name="Paphos, Cyprus",
+            start_name="34.77500, 32.42400",
             start_coords=(34.775, 32.424),
             max_total_km=max_total_km,
             max_elevation_m=max_elevation_m,
@@ -114,6 +124,25 @@ class FakeRoundTripPipeline:
             radii_km=[11.3, 12.0, 12.7],
             selected_candidates=[candidate],
         )
+
+
+class FakeRoutePlannerCliService:
+    def __init__(self) -> None:
+        self.last_request = None
+
+    def plan_round_trip_route_gpx(self, request: RoundTripRouteRequest) -> str:
+        self.last_request = request
+        return '{"ok":true}'
+
+
+def test_point_to_point_request_allows_hiking_mountain_profile() -> None:
+    request = PointToPointRouteRequest(
+        start_location="Paphos, Cyprus",
+        end_location="Limassol, Cyprus",
+        profile="hiking-mountain",
+    )
+
+    assert request.profile == "hiking-mountain"
 
 
 def test_route_planner_service_builds_point_to_point_payload(monkeypatch) -> None:
@@ -126,8 +155,9 @@ def test_route_planner_service_builds_point_to_point_payload(monkeypatch) -> Non
     monkeypatch.setattr(
         service_module.artifact_store, "register_file", lambda path, filename=None: FakeArtifact()
     )
+    route_client = FakeRoutePlannerClient()
     service = RoutePlannerService(
-        FakeRoutePlannerClient(),
+        route_client,
         public_base_url="https://agent.example.test",
     )
 
@@ -165,6 +195,7 @@ def test_route_planner_service_builds_point_to_point_payload(monkeypatch) -> Non
             "descent_m": 760,
         },
     }
+    assert route_client.geocode_calls == ["Paphos, Cyprus", "Limassol, Cyprus"]
 
 
 def test_route_planner_service_adds_strava_avoidance_summary(monkeypatch) -> None:
@@ -196,12 +227,14 @@ def test_route_planner_service_adds_strava_avoidance_summary(monkeypatch) -> Non
         )(),
     )
 
-    service = RoutePlannerService(FakeRoutePlannerClient(), FakeStravaService())
+    route_client = FakeRoutePlannerClient()
+    service = RoutePlannerService(route_client, FakeStravaService())
 
     payload = json.loads(
         service.plan_round_trip_route_gpx(
             RoundTripRouteRequest(
-                start_location="Paphos, Cyprus",
+                start_latitude=34.775,
+                start_longitude=32.424,
                 max_total_km=60,
                 max_elevation_m=800,
                 profile="gravel",
@@ -211,7 +244,7 @@ def test_route_planner_service_adds_strava_avoidance_summary(monkeypatch) -> Non
     )
 
     assert payload["start"] == {
-        "name": "Paphos, Cyprus",
+        "name": "34.77500, 32.42400",
         "latitude": 34.775,
         "longitude": 32.424,
     }
@@ -230,6 +263,95 @@ def test_route_planner_service_adds_strava_avoidance_summary(monkeypatch) -> Non
     }
     assert payload["options"][0]["id"] == "RT03"
     assert payload["options"][0]["gpx"] == {"download_url": "/downloads/rt03.gpx"}
+    assert route_client.geocode_calls == []
+
+
+def test_route_planner_client_uses_hiking_mountain_brouter_profile(tmp_path) -> None:
+    requested_profiles: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requested_profiles.append(request.url.params["profile"])
+        return httpx.Response(
+            200,
+            json={
+                "features": [
+                    {
+                        "properties": {
+                            "track-length": 1200,
+                            "total-time": 900,
+                            "filtered ascend": 120,
+                            "filtered descend": -120,
+                        },
+                        "geometry": {
+                            "coordinates": [
+                                [32.424, 34.775],
+                                [33.038, 34.684],
+                            ]
+                        },
+                    }
+                ]
+            },
+        )
+
+    http_client = httpx.Client(transport=httpx.MockTransport(handler))
+    route_client = RoutePlannerClient(
+        brouter_url="http://127.0.0.1:17777/brouter",
+        geocoder_user_agent="pydanticai-tool-agent/0.1",
+        output_dir=tmp_path,
+        http_client=http_client,
+    )
+
+    result = route_client.calculate_route(
+        start_lat=34.775,
+        start_lon=32.424,
+        end_lat=34.684,
+        end_lon=33.038,
+        bike_profile="hiking-mountain",
+    )
+
+    assert requested_profiles == ["hiking-mountain"]
+    assert result["profile"] == "hiking-mountain"
+    route_client.close()
+
+
+def test_route_planner_cli_builds_round_trip_coordinate_request(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    service = FakeRoutePlannerCliService()
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "route-planner-tool",
+            "round-trip",
+            "--start-latitude",
+            "34.775",
+            "--start-longitude",
+            "32.424",
+            "--max-total-km",
+            "60",
+            "--max-elevation-m",
+            "800",
+            "--profile",
+            "gravel",
+            "--avoid-known-roads",
+        ],
+    )
+
+    exit_code = cli_main(service)
+    output = capsys.readouterr()
+
+    assert exit_code == 0
+    assert output.out.strip() == '{"ok":true}'
+    assert service.last_request == RoundTripRouteRequest(
+        start_latitude=34.775,
+        start_longitude=32.424,
+        max_total_km=60,
+        max_elevation_m=800,
+        profile="gravel",
+        avoid_known_roads=True,
+    )
 
 
 def test_strava_service_builds_authorize_url_and_extracts_code(tmp_path) -> None:

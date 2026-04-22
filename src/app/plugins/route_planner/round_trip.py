@@ -123,7 +123,7 @@ class RoundTripPipeline:
 
     def execute(
         self,
-        start_location: str,
+        start_coords: tuple[float, float],
         max_total_km: float,
         max_elevation_m: float | None,
         profile: str,
@@ -134,9 +134,8 @@ class RoundTripPipeline:
             max_elevation_m=max_elevation_m,
             profile=profile,
         )
-        start_result = self._route_client.geocode_location(start_location)
-        result.start_name = start_result["name"]
-        result.start_coords = (start_result["lat"], start_result["lon"])
+        result.start_name = _format_coordinate_label(*start_coords)
+        result.start_coords = start_coords
 
         radii_km = self._derive_radii(max_total_km)
         result.radii_km = radii_km
@@ -603,5 +602,23 @@ class RoundTripPipeline:
         return shared_length_m / candidate.total_length_m
 
     def _build_route_name(self, start_name: str) -> str:
-        base = start_name.split(",")[0].strip() if start_name else "round_trip"
+        base = start_name.strip() if start_name else "round_trip"
+        if "," in base and not _is_coordinate_label(base):
+            base = base.split(",")[0].strip()
         return f"{base}_round_trip"
+
+
+def _format_coordinate_label(latitude: float, longitude: float) -> str:
+    return f"{latitude:.5f}, {longitude:.5f}"
+
+
+def _is_coordinate_label(value: str) -> bool:
+    parts = [part.strip() for part in value.split(",")]
+    if len(parts) != 2:
+        return False
+    try:
+        float(parts[0])
+        float(parts[1])
+    except ValueError:
+        return False
+    return True

@@ -5,7 +5,16 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
-RouteProfile = Literal["road", "gravel", "trekking", "mountain", "mtb", "safety", "shortest"]
+RouteProfile = Literal[
+    "road",
+    "gravel",
+    "trekking",
+    "mountain",
+    "hiking-mountain",
+    "mtb",
+    "safety",
+    "shortest",
+]
 
 
 class PointToPointRouteRequest(BaseModel):
@@ -16,7 +25,8 @@ class PointToPointRouteRequest(BaseModel):
 
 
 class RoundTripRouteRequest(BaseModel):
-    start_location: str = Field(min_length=2)
+    start_latitude: float = Field(ge=-90, le=90)
+    start_longitude: float = Field(ge=-180, le=180)
     max_total_km: float = Field(gt=1, le=500)
     max_elevation_m: float | None = Field(default=None, ge=0, le=10000)
     profile: RouteProfile = "gravel"
