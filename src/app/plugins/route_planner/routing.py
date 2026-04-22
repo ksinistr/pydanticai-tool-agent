@@ -67,6 +67,8 @@ class RoutePlannerClient:
                     "q": location_name,
                     "format": "json",
                     "limit": 1,
+                    "accept-language": "en",
+                    "namedetails": 1,
                 },
                 headers={"User-Agent": self._geocoder_user_agent},
                 timeout=30.0,
@@ -81,7 +83,7 @@ class RoutePlannerClient:
 
         result = payload[0]
         return {
-            "name": str(result.get("display_name", location_name))[:120],
+            "name": _preferred_nominatim_name(result, location_name)[:120],
             "lat": float(result["lat"]),
             "lon": float(result["lon"]),
         }
@@ -388,3 +390,36 @@ def _serialize_brouter_polygons(polygons: list[BrouterPolygonNogo] | None) -> st
     if not encoded_polygons:
         return None
     return "|".join(encoded_polygons)
+
+
+def _preferred_nominatim_name(result: dict, fallback: str) -> str:
+    display_name = str(result.get("display_name", fallback)).strip() or fallback
+    english_name = _preferred_nominatim_label(result.get("namedetails"))
+    if not english_name:
+        return display_name
+
+    parts = [part.strip() for part in display_name.split(",")]
+    if not parts:
+        return english_name
+    parts[0] = english_name
+    return ", ".join(part for part in parts if part)
+
+
+def _preferred_nominatim_label(namedetails: object) -> str | None:
+    if not isinstance(namedetails, dict):
+        return None
+
+    for key in (
+        "name:en",
+        "official_name:en",
+        "short_name:en",
+        "alt_name:en",
+        "int_name",
+        "name",
+    ):
+        value = namedetails.get(key)
+        if isinstance(value, str):
+            cleaned = value.strip()
+            if cleaned:
+                return cleaned
+    return None

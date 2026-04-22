@@ -219,6 +219,80 @@ def test_route_planner_service_builds_point_to_point_payload(monkeypatch) -> Non
     assert route_client.geocode_calls == ["Paphos, Cyprus", "Limassol, Cyprus"]
 
 
+def test_route_planner_service_keeps_utf8_in_point_to_point_output(monkeypatch) -> None:
+    import app.plugins.route_planner.service as service_module
+
+    class FakeUnicodeRoutePlannerClient:
+        def geocode_location(self, location_name: str) -> dict:
+            mapping = {
+                "Paphos": {"name": "Δήμος Πάφου", "lat": 34.775, "lon": 32.424},
+                "Limassol": {"name": "Λεμεσός, Κύπρος", "lat": 34.684, "lon": 33.038},
+            }
+            return mapping[location_name]
+
+        def calculate_route(
+            self,
+            start_lat: float,
+            start_lon: float,
+            end_lat: float,
+            end_lon: float,
+            bike_profile: str = "trekking",
+            include_geometry: bool = False,
+            alternative_idx: int = 0,
+            nogos=None,
+            polygons=None,
+        ) -> dict:
+            return {
+                "distance_km": 71.2,
+                "duration_hours": 4.15,
+                "elevation": {"ascent_m": 810, "descent_m": 760},
+            }
+
+        def export_route_gpx(
+            self,
+            waypoints: list[tuple[float, float]],
+            route_name: str,
+            profile: str,
+        ) -> dict:
+            return {
+                "filepath": "/tmp/unicode_route.gpx",
+                "filename": "unicode_route.gpx",
+            }
+
+        def build_brouter_web_url(
+            self,
+            waypoints: list[tuple[float, float]],
+            bike_profile: str,
+            brouter_web_url: str | None,
+            zoom: int = 14,
+        ) -> str | None:
+            return None
+
+    class FakeArtifact:
+        filename = "unicode_route.gpx"
+        download_url = "/downloads/fake-point"
+
+    monkeypatch.setattr(
+        service_module.artifact_store, "register_file", lambda path, filename=None: FakeArtifact()
+    )
+    service = RoutePlannerService(
+        FakeUnicodeRoutePlannerClient(),
+        public_base_url="https://agent.example.test",
+    )
+
+    raw_output = service.plan_point_to_point_route_gpx(
+        PointToPointRouteRequest(
+            start_location="Paphos",
+            end_location="Limassol",
+            profile="gravel",
+        )
+    )
+
+    assert "Δήμος Πάφου_to_Λεμεσός" in raw_output
+    assert "Λεμεσός, Κύπρος" in raw_output
+    assert "\\u" not in raw_output
+
+
 def test_route_planner_service_adds_strava_avoidance_summary(monkeypatch) -> None:
     import app.plugins.route_planner.service as service_module
 
@@ -332,6 +406,48 @@ def test_route_planner_client_uses_hiking_mountain_brouter_profile(tmp_path) -> 
 
     assert requested_profiles == ["hiking-mountain"]
     assert result["profile"] == "hiking-mountain"
+    route_client.close()
+
+
+def test_route_planner_client_prefers_english_nominatim_names(tmp_path) -> None:
+    seen_accept_language: list[str] = []
+    seen_namedetails: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen_accept_language.append(request.url.params["accept-language"])
+        seen_namedetails.append(request.url.params["namedetails"])
+        return httpx.Response(
+            200,
+            json=[
+                {
+                    "display_name": "Λεμεσός, Δήμος Λεμεσού, Κύπρος",
+                    "namedetails": {
+                        "name:en": "Limassol",
+                        "name": "Λεμεσός",
+                    },
+                    "lat": "34.68529",
+                    "lon": "33.03327",
+                }
+            ],
+        )
+
+    http_client = httpx.Client(transport=httpx.MockTransport(handler))
+    route_client = RoutePlannerClient(
+        brouter_url="http://127.0.0.1:17777/brouter",
+        geocoder_user_agent="pydanticai-tool-agent/0.1",
+        output_dir=tmp_path,
+        http_client=http_client,
+    )
+
+    result = route_client.geocode_location("Limassol")
+
+    assert seen_accept_language == ["en"]
+    assert seen_namedetails == ["1"]
+    assert result == {
+        "name": "Limassol, Δήμος Λεμεσού, Κύπρος",
+        "lat": 34.68529,
+        "lon": 33.03327,
+    }
     route_client.close()
 
 

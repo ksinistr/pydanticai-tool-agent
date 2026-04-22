@@ -188,4 +188,4 @@ def _compact_dict(payload: dict) -> dict:
 
 
 def _to_json(payload: dict) -> str:
-    return json.dumps(payload, indent=2, sort_keys=True)
+    return json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False)
