@@ -10,6 +10,7 @@ import pytest
 
 from app.plugins.route_planner.cli import main as cli_main
 from app.plugins.route_planner.gpx_images import (
+    GpxImageRenderer,
     GpxImageSummary,
     RenderedGpxImages,
     ensure_jpeg_size_limit,
@@ -195,6 +196,26 @@ class FakeRoutePlannerRenderService:
     def render_route_gpx_images(self, request: GpxImageRequest) -> str:
         self.last_request = request
         return '{"ok":true}'
+
+
+def _fake_gpx_track(
+    latitudes: list[float],
+    longitudes: list[float],
+    elevations: list[float],
+    distances: list[float],
+):
+    return type(
+        "FakeTrack",
+        (),
+        {
+            "data": {
+                "latitude (°)": latitudes,
+                "longitude (°)": longitudes,
+                "elevation (m)": elevations,
+                "distance (km)": distances,
+            }
+        },
+    )()
 
 
 def test_point_to_point_request_allows_hiking_mountain_profile() -> None:
@@ -486,6 +507,95 @@ def test_route_planner_plugin_builds_gpx_image_request() -> None:
         gpx_reference="/downloads/example",
         track_color="crimson",
     )
+
+
+def test_gpx_image_renderer_prefers_brouter_filtered_metrics(monkeypatch, tmp_path: Path) -> None:
+    import app.plugins.route_planner.gpx_images as gpx_images_module
+
+    gpx_path = tmp_path / "brouter_route.gpx"
+    gpx_path.write_text(
+        """<?xml version="1.0" encoding="UTF-8"?>
+<!-- track-length = 49919 filtered ascend = 1168 filtered descend = -1142 -->
+<gpx version="1.1"><trk><trkseg /></trk></gpx>
+""",
+        encoding="utf-8",
+    )
+
+    renderer = GpxImageRenderer(tmp_path)
+    track = _fake_gpx_track(
+        latitudes=[35.0, 35.01, 35.02],
+        longitudes=[32.4, 32.41, 32.42],
+        elevations=[20.0, 120.0, 40.0],
+        distances=[0.0, 1.0, 2.0],
+    )
+
+    monkeypatch.setattr(GpxImageRenderer, "_load_track", lambda self, path: track)
+    monkeypatch.setattr(GpxImageRenderer, "_load_plotting_modules", lambda self: {})
+    monkeypatch.setattr(
+        GpxImageRenderer,
+        "_render_static_map",
+        lambda self, plotting, latitudes, longitudes, output_path, track_color: output_path.write_bytes(
+            b"jpg"
+        ),
+    )
+    monkeypatch.setattr(
+        GpxImageRenderer,
+        "_render_elevation_profile",
+        lambda self, plotting, distances, elevations, output_path, track_color: output_path.write_bytes(
+            b"png"
+        ),
+    )
+    monkeypatch.setattr(gpx_images_module, "ensure_jpeg_size_limit", lambda path, max_bytes: None)
+    monkeypatch.setattr(gpx_images_module, "ensure_png_size_limit", lambda path, max_bytes: None)
+
+    rendered = renderer.render(gpx_path)
+
+    assert rendered.summary.ascent_m == 1168.0
+    assert rendered.summary.descent_m == 1142.0
+
+
+def test_gpx_image_renderer_falls_back_to_raw_gpx_metrics(monkeypatch, tmp_path: Path) -> None:
+    import app.plugins.route_planner.gpx_images as gpx_images_module
+
+    gpx_path = tmp_path / "plain_route.gpx"
+    gpx_path.write_text(
+        """<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1"><trk><trkseg /></trk></gpx>
+""",
+        encoding="utf-8",
+    )
+
+    renderer = GpxImageRenderer(tmp_path)
+    track = _fake_gpx_track(
+        latitudes=[35.0, 35.01, 35.02, 35.03],
+        longitudes=[32.4, 32.41, 32.42, 32.43],
+        elevations=[100.0, 110.0, 105.0, 120.0],
+        distances=[0.0, 1.0, 2.0, 3.0],
+    )
+
+    monkeypatch.setattr(GpxImageRenderer, "_load_track", lambda self, path: track)
+    monkeypatch.setattr(GpxImageRenderer, "_load_plotting_modules", lambda self: {})
+    monkeypatch.setattr(
+        GpxImageRenderer,
+        "_render_static_map",
+        lambda self, plotting, latitudes, longitudes, output_path, track_color: output_path.write_bytes(
+            b"jpg"
+        ),
+    )
+    monkeypatch.setattr(
+        GpxImageRenderer,
+        "_render_elevation_profile",
+        lambda self, plotting, distances, elevations, output_path, track_color: output_path.write_bytes(
+            b"png"
+        ),
+    )
+    monkeypatch.setattr(gpx_images_module, "ensure_jpeg_size_limit", lambda path, max_bytes: None)
+    monkeypatch.setattr(gpx_images_module, "ensure_png_size_limit", lambda path, max_bytes: None)
+
+    rendered = renderer.render(gpx_path)
+
+    assert rendered.summary.ascent_m == 25.0
+    assert rendered.summary.descent_m == 5.0
 
 
 def test_route_planner_client_uses_hiking_mountain_brouter_profile(tmp_path) -> None:

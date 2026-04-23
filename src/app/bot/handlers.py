@@ -1,15 +1,17 @@
 from __future__ import annotations
 
+import json
 import logging
 import mimetypes
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Protocol
 
 from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
 from app.agent.service import AgentService
+from app.artifacts import artifact_session
 from app.bot.formatting import render_telegram_html
 from app.bot.uploads import (
     PendingTelegramDocumentStore,
@@ -21,6 +23,14 @@ from app.daily_training_advice.service import DailyTrainingAdviceService
 from app.morning_report.service import MorningReportService
 
 logger = logging.getLogger(__name__)
+DEFAULT_GPX_ANALYSIS_PROMPT = (
+    "Render route images from this GPX file and provide a short summary with distance, "
+    "ascent, descent, and min/max elevation."
+)
+
+
+class GpxDocumentAnalyzer(Protocol):
+    def render_route_gpx_images(self, gpx_reference: str, track_color: str = "red") -> str: ...
 
 
 class TelegramHandlers:
@@ -32,6 +42,7 @@ class TelegramHandlers:
         authorized_users: Iterable[str] = (),
         document_store: TelegramDocumentStore | None = None,
         pending_documents: PendingTelegramDocumentStore | None = None,
+        gpx_document_analyzer: GpxDocumentAnalyzer | None = None,
     ) -> None:
         self._agent_service = agent_service
         self._morning_report_service = morning_report_service
@@ -41,6 +52,7 @@ class TelegramHandlers:
         )
         self._document_store = document_store
         self._pending_documents = pending_documents or PendingTelegramDocumentStore()
+        self._gpx_document_analyzer = gpx_document_analyzer
 
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         del context
@@ -177,14 +189,19 @@ class TelegramHandlers:
             return
 
         session_id = str(chat.id)
-        self._pending_documents.put(session_id, saved_document)
+        self._pending_documents.clear(session_id)
 
         caption = (message.caption or "").strip()
-        if not caption:
-            await self._reply_text(message, "GPX file received. What should I do with it?")
+        if self._gpx_document_analyzer is not None and not caption:
+            if not await self._run_gpx_analysis(
+                session_id=session_id,
+                message=message,
+                document=saved_document,
+            ):
+                return
             return
 
-        prompt = _build_prompt(caption, saved_document)
+        prompt = _build_prompt(caption or DEFAULT_GPX_ANALYSIS_PROMPT, saved_document)
         if not await self._run_agent_prompt(
             session_id=session_id,
             message=message,
@@ -195,6 +212,27 @@ class TelegramHandlers:
             return
 
         self._pending_documents.clear(session_id)
+
+    async def _run_gpx_analysis(
+        self,
+        session_id: str,
+        message: object,
+        document: SavedTelegramDocument,
+    ) -> bool:
+        try:
+            with artifact_session(session_id):
+                reply = self._gpx_document_analyzer.render_route_gpx_images(str(document.path))
+        except Exception:
+            logger.exception("Failed to process Telegram GPX document")
+            await self._reply_text(
+                message,
+                "The bot hit an internal error while processing that GPX file.",
+            )
+            return False
+
+        await self._reply_text(message, _format_gpx_analysis_reply(document.filename, reply))
+        await self._send_artifacts(message, session_id)
+        return True
 
     async def _authorize(self, update: Update) -> bool:
         if not self._authorized_user_ids and not self._authorized_usernames:
@@ -281,3 +319,57 @@ def _build_prompt(text: str, document: SavedTelegramDocument | None) -> str:
         f"Local file path: {document.path}\n"
         "Use this local file path directly if you need the uploaded file."
     )
+
+
+def _format_gpx_analysis_reply(filename: str, reply: str) -> str:
+    try:
+        payload = json.loads(reply)
+    except json.JSONDecodeError:
+        return reply
+
+    if not isinstance(payload, dict):
+        return reply
+
+    source = payload.get("source")
+    source_filename = filename
+    if isinstance(source, dict) and isinstance(source.get("filename"), str):
+        source_filename = source["filename"]
+
+    summary = payload.get("summary")
+    if not isinstance(summary, dict):
+        return f"GPX analysis is ready for `{source_filename}`."
+
+    lines = [f"GPX analysis for `{source_filename}`:"]
+    distance_km = _format_metric(summary.get("distance_km"), "km")
+    ascent_m = _format_metric(summary.get("ascent_m"), "m")
+    descent_m = _format_metric(summary.get("descent_m"), "m")
+    min_elevation_m = _format_metric(summary.get("min_elevation_m"), "m")
+    max_elevation_m = _format_metric(summary.get("max_elevation_m"), "m")
+
+    if distance_km is not None:
+        lines.append(f"- Distance: {distance_km}")
+    if ascent_m is not None:
+        lines.append(f"- Ascent: {ascent_m}")
+    if descent_m is not None:
+        lines.append(f"- Descent: {descent_m}")
+    if min_elevation_m is not None and max_elevation_m is not None:
+        lines.append(f"- Elevation: {min_elevation_m} to {max_elevation_m}")
+    elif min_elevation_m is not None:
+        lines.append(f"- Min elevation: {min_elevation_m}")
+    elif max_elevation_m is not None:
+        lines.append(f"- Max elevation: {max_elevation_m}")
+
+    lines.append("Map and elevation profile attached.")
+    return "\n".join(lines)
+
+
+def _format_metric(value: object, unit: str) -> str | None:
+    if isinstance(value, bool) or value is None:
+        return None
+    if not isinstance(value, int | float):
+        return None
+    if unit == "m":
+        if float(value).is_integer():
+            return f"{int(value)} {unit}"
+        return f"{value:.1f} {unit}"
+    return f"{value:.2f} {unit}"

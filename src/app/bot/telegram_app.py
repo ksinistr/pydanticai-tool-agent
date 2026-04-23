@@ -16,7 +16,8 @@ from app.plugins.loader import load_plugins
 
 
 def build_application(config: AppConfig) -> Application:
-    agent = build_agent(config, load_plugins(config))
+    plugins = load_plugins(config)
+    agent = build_agent(config, plugins)
     service = AgentService(agent, CurrentDayConversationStore())
     morning_report_service = build_morning_report_service(config)
     daily_training_advice_service = build_daily_training_advice_service(config)
@@ -27,6 +28,10 @@ def build_application(config: AppConfig) -> Application:
         authorized_users=config.telegram_authorized_users,
         document_store=TelegramDocumentStore(project_root() / "output" / "telegram_uploads"),
         pending_documents=PendingTelegramDocumentStore(),
+        gpx_document_analyzer=next(
+            (plugin for plugin in plugins if getattr(plugin, "name", None) == "route_planner"),
+            None,
+        ),
     )
 
     application = Application.builder().token(config.require_telegram_bot_token()).build()

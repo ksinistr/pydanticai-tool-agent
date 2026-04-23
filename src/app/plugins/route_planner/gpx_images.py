@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from io import BytesIO
 import math
 from pathlib import Path
+import re
 from secrets import token_hex
 from urllib.parse import urlparse
 
@@ -21,6 +22,9 @@ MIN_OUTPUT_IMAGE_DIMENSION = 320
 PNG_PALETTE_SIZES = (256, 192, 128, 96, 64, 48, 32)
 IMAGE_SCALE_FACTOR = 0.88
 JPEG_QUALITY_STEPS = (88, 82, 76, 70, 64, 58, 52, 46, 40)
+BROUTER_FILTERED_ASCEND_PATTERN = re.compile(r"filtered ascend\s*=\s*(-?\d+(?:\.\d+)?)")
+BROUTER_FILTERED_DESCEND_PATTERN = re.compile(r"filtered descend\s*=\s*(-?\d+(?:\.\d+)?)")
+BROUTER_HEADER_SCAN_BYTES = 4096
 
 
 class GpxImageError(RuntimeError):
@@ -44,6 +48,12 @@ class RenderedGpxImages:
     elevation_profile_path: Path
     elevation_profile_filename: str
     summary: GpxImageSummary
+
+
+@dataclass(frozen=True, slots=True)
+class GpxElevationMetrics:
+    ascent_m: float | None = None
+    descent_m: float | None = None
 
 
 class GpxImageRenderer:
@@ -74,12 +84,23 @@ class GpxImageRenderer:
         latitudes, longitudes = self._coordinates(track)
         elevations = self._elevations(track)
         distances = self._distances(track, latitudes, longitudes)
+        elevation_metrics = _read_brouter_elevation_metrics(gpx_path)
 
         summary = GpxImageSummary(
             point_count=len(latitudes),
             distance_km=_round_or_none(distances[-1] if distances else None, 2),
-            ascent_m=_round_or_none(_positive_gain(elevations), 1),
-            descent_m=_round_or_none(_negative_gain(elevations), 1),
+            ascent_m=_round_or_none(
+                elevation_metrics.ascent_m
+                if elevation_metrics.ascent_m is not None
+                else _positive_gain(elevations),
+                1,
+            ),
+            descent_m=_round_or_none(
+                elevation_metrics.descent_m
+                if elevation_metrics.descent_m is not None
+                else _negative_gain(elevations),
+                1,
+            ),
             min_elevation_m=_round_or_none(min(elevations) if elevations else None, 1),
             max_elevation_m=_round_or_none(max(elevations) if elevations else None, 1),
         )
@@ -438,6 +459,22 @@ def _negative_gain(elevations: list[float]) -> float | None:
     for previous, current in zip(elevations, elevations[1:], strict=False):
         gain += max(previous - current, 0.0)
     return gain
+
+
+def _read_brouter_elevation_metrics(gpx_path: Path) -> GpxElevationMetrics:
+    with gpx_path.open("r", encoding="utf-8", errors="ignore") as handle:
+        header = handle.read(BROUTER_HEADER_SCAN_BYTES)
+    return GpxElevationMetrics(
+        ascent_m=_extract_metric(header, BROUTER_FILTERED_ASCEND_PATTERN),
+        descent_m=_extract_metric(header, BROUTER_FILTERED_DESCEND_PATTERN),
+    )
+
+
+def _extract_metric(text: str, pattern: re.Pattern[str]) -> float | None:
+    match = pattern.search(text)
+    if match is None:
+        return None
+    return abs(float(match.group(1)))
 
 
 def _round_or_none(value: float | None, digits: int) -> float | None:

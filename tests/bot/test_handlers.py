@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 from telegram.constants import ParseMode
 
+from app.artifacts import artifact_store
 from app.bot.formatting import render_telegram_html
 from app.bot.handlers import TelegramHandlers
 from app.bot.uploads import PendingTelegramDocumentStore, TelegramDocumentStore
@@ -166,7 +168,7 @@ def test_daily_training_advice_rejects_arguments() -> None:
 def test_handle_text_formats_basic_markdown() -> None:
     service = SimpleNamespace(
         run=AsyncMock(return_value="**Title**\n- item\n`code`\n[site](https://example.com)"),
-        consume_artifacts=lambda session_id: [],
+        consume_artifacts=artifact_store.consume_session_artifacts,
     )
     handlers = TelegramHandlers(service)
     message = SimpleNamespace(
@@ -220,7 +222,7 @@ def test_handle_text_sends_png_artifacts_as_photos(tmp_path: Path) -> None:
 def test_handle_document_with_caption_passes_file_context_to_agent(tmp_path: Path) -> None:
     service = SimpleNamespace(
         run=AsyncMock(return_value="ok"),
-        consume_artifacts=lambda session_id: [],
+        consume_artifacts=artifact_store.consume_session_artifacts,
     )
     pending_documents = PendingTelegramDocumentStore()
     handlers = TelegramHandlers(
@@ -251,10 +253,10 @@ def test_handle_document_with_caption_passes_file_context_to_agent(tmp_path: Pat
     assert pending_documents.get("42") is None
 
 
-def test_handle_document_without_caption_asks_user_then_uses_next_text(tmp_path: Path) -> None:
+def test_handle_document_without_caption_runs_default_agent_analysis(tmp_path: Path) -> None:
     service = SimpleNamespace(
         run=AsyncMock(return_value="ok"),
-        consume_artifacts=lambda session_id: [],
+        consume_artifacts=artifact_store.consume_session_artifacts,
     )
     pending_documents = PendingTelegramDocumentStore()
     handlers = TelegramHandlers(
@@ -277,42 +279,19 @@ def test_handle_document_without_caption_asks_user_then_uses_next_text(tmp_path:
 
     asyncio.run(handlers.handle_document(document_update, None))
 
-    service.run.assert_not_awaited()
-    document_message.reply_text.assert_awaited_once_with(
-        "GPX file received. What should I do with it?",
-        parse_mode=ParseMode.HTML,
-    )
-
-    saved_document = pending_documents.get("42")
-    assert saved_document is not None
-    assert saved_document.path.exists()
-
-    text_message = SimpleNamespace(
-        text="Render route images from it.",
-        reply_text=AsyncMock(),
-        reply_document=AsyncMock(),
-        reply_photo=AsyncMock(),
-    )
-    text_update = SimpleNamespace(
-        effective_message=text_message,
-        effective_chat=SimpleNamespace(id=42),
-        effective_user=SimpleNamespace(id=7, username="allowed_user"),
-    )
-
-    asyncio.run(handlers.handle_text(text_update, None))
-
     service.run.assert_awaited_once()
     prompt = service.run.await_args.args[1]
-    assert "Render route images from it." in prompt
+    assert "Render route images from this GPX file" in prompt
+    assert "short summary with distance, ascent, descent, and min/max elevation" in prompt
     assert "route.gpx" in prompt
-    assert str(saved_document.path) in prompt
+    assert str(tmp_path) in prompt
     assert pending_documents.get("42") is None
 
 
 def test_handle_document_rejects_non_gpx_files(tmp_path: Path) -> None:
     service = SimpleNamespace(
         run=AsyncMock(return_value="ok"),
-        consume_artifacts=lambda session_id: [],
+        consume_artifacts=artifact_store.consume_session_artifacts,
     )
     handlers = TelegramHandlers(
         service,
@@ -338,6 +317,72 @@ def test_handle_document_rejects_non_gpx_files(tmp_path: Path) -> None:
         "Only .gpx documents are supported right now.",
         parse_mode=ParseMode.HTML,
     )
+
+
+def test_handle_document_without_caption_uses_gpx_analyzer(tmp_path: Path) -> None:
+    map_path = tmp_path / "route_map.jpg"
+    profile_path = tmp_path / "route_profile.png"
+    map_path.write_bytes(b"jpg")
+    profile_path.write_bytes(b"png")
+
+    class FakeGpxAnalyzer:
+        def __init__(self) -> None:
+            self.calls: list[tuple[str, str]] = []
+
+        def render_route_gpx_images(self, gpx_reference: str, track_color: str = "red") -> str:
+            self.calls.append((gpx_reference, track_color))
+            artifact_store.register_file(map_path, map_path.name)
+            artifact_store.register_file(profile_path, profile_path.name)
+            return json.dumps(
+                {
+                    "source": {"filename": "route.gpx"},
+                    "summary": {
+                        "distance_km": 49.91,
+                        "ascent_m": 1168.0,
+                        "descent_m": 1142.0,
+                        "min_elevation_m": 7.8,
+                        "max_elevation_m": 496.0,
+                    },
+                }
+            )
+
+    service = SimpleNamespace(
+        run=AsyncMock(return_value="ok"),
+        consume_artifacts=artifact_store.consume_session_artifacts,
+    )
+    analyzer = FakeGpxAnalyzer()
+    handlers = TelegramHandlers(
+        service,
+        document_store=TelegramDocumentStore(tmp_path),
+        gpx_document_analyzer=analyzer,
+    )
+    message = SimpleNamespace(
+        caption=None,
+        document=_document("route.gpx", "<gpx/>"),
+        reply_text=AsyncMock(),
+        reply_document=AsyncMock(),
+        reply_photo=AsyncMock(),
+    )
+    update = SimpleNamespace(
+        effective_message=message,
+        effective_chat=SimpleNamespace(id=42),
+        effective_user=SimpleNamespace(id=7, username="allowed_user"),
+    )
+
+    asyncio.run(handlers.handle_document(update, None))
+
+    service.run.assert_not_awaited()
+    assert len(analyzer.calls) == 1
+    assert analyzer.calls[0][0].endswith(".gpx")
+    assert analyzer.calls[0][1] == "red"
+    reply = message.reply_text.await_args.args[0]
+    assert "GPX analysis for" in reply
+    assert "Distance: 49.91 km" in reply
+    assert "Ascent: 1168 m" in reply
+    assert "Elevation: 7.8 m to 496 m" in reply
+    assert "Map and elevation profile attached." in reply
+    assert message.reply_photo.await_count == 2
+    message.reply_document.assert_not_awaited()
 
 
 def _document(filename: str, payload: str) -> SimpleNamespace:
