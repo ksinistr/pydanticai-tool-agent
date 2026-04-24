@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 
 from app.config import project_root
 from app.artifacts import artifact_store
+from app.plugins.route_planner.gpx_enrichment import GpxRouteEnricher
 from app.plugins.route_planner.gpx_images import GpxImageRenderer, resolve_gpx_reference
 from app.plugins.route_planner.models import (
     GpxImageRequest,
@@ -16,6 +18,8 @@ from app.plugins.route_planner.routing import RoutePlannerClient
 from app.plugins.route_planner.strava import StravaService
 from app.plugins.route_planner.strava_nogo import build_round_trip_strava_nogos
 
+logger = logging.getLogger(__name__)
+
 
 class RoutePlannerService:
     def __init__(
@@ -23,12 +27,14 @@ class RoutePlannerService:
         route_client: RoutePlannerClient,
         strava_service: StravaService | None = None,
         image_renderer: GpxImageRenderer | None = None,
+        gpx_enricher: GpxRouteEnricher | None = None,
         public_base_url: str | None = None,
         brouter_web_url: str | None = None,
     ) -> None:
         self._route_client = route_client
         self._strava_service = strava_service
         self._image_renderer = image_renderer
+        self._gpx_enricher = gpx_enricher
         self._public_base_url = public_base_url.rstrip("/") if public_base_url else None
         self._brouter_web_url = brouter_web_url.rstrip("/") if brouter_web_url else None
 
@@ -156,7 +162,11 @@ class RoutePlannerService:
             }
         return _to_json(payload)
 
-    def render_route_gpx_images(self, request: GpxImageRequest) -> str:
+    def render_route_gpx_images(
+        self,
+        request: GpxImageRequest,
+        include_enriched_gpx: bool = False,
+    ) -> str:
         if self._image_renderer is None:
             raise ValueError("GPX image rendering is not configured for this deployment.")
 
@@ -171,6 +181,9 @@ class RoutePlannerService:
             rendered.elevation_profile_path,
             rendered.elevation_profile_filename,
         )
+        enriched_gpx = None
+        if include_enriched_gpx:
+            enriched_gpx = self._enriched_gpx_attachment(gpx_path)
 
         return _to_json(
             _compact_dict(
@@ -187,6 +200,7 @@ class RoutePlannerService:
                     "elevation_profile": {
                         "download_url": self._download_url(profile_artifact.download_url),
                     },
+                    "enriched_gpx": enriched_gpx,
                     "summary": _compact_dict(
                         {
                             "point_count": rendered.summary.point_count,
@@ -205,6 +219,29 @@ class RoutePlannerService:
         artifact = artifact_store.register_file(Path(filepath), filename)
         return {
             "download_url": self._download_url(artifact.download_url),
+        }
+
+    def _enriched_gpx_attachment(self, gpx_path: Path) -> dict | None:
+        if self._gpx_enricher is None:
+            return None
+
+        try:
+            enriched = self._gpx_enricher.enrich(gpx_path)
+        except Exception as exc:
+            logger.exception("Failed to enrich GPX file")
+            return {
+                "status": "unavailable",
+                "error": str(exc),
+            }
+
+        artifact = artifact_store.register_file(enriched.path, enriched.filename)
+        return {
+            "status": "ok",
+            "filename": enriched.filename,
+            "download_url": self._download_url(artifact.download_url),
+            "refuel_waypoints": enriched.refuel_waypoints,
+            "camping_waypoints": enriched.camping_waypoints,
+            "attribution": enriched.attribution,
         }
 
     def _download_url(self, relative_url: str) -> str:

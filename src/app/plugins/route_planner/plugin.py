@@ -2,11 +2,13 @@ from __future__ import annotations
 
 from functools import partial
 
+import httpx
 from pydantic_ai import Agent
 
 from app.config import AppConfig, project_root
 from app.plugins.base import AgentPlugin, PluginCli
 from app.plugins.route_planner.cli import main as cli_main
+from app.plugins.route_planner.gpx_enrichment import GpxRouteEnricher, OverpassPoiProvider
 from app.plugins.route_planner.gpx_images import GpxImageError, GpxImageRenderer
 from app.plugins.route_planner.models import (
     GpxImageRequest,
@@ -90,15 +92,22 @@ class RoutePlannerPlugin(AgentPlugin):
         self,
         gpx_reference: str,
         track_color: str = "red",
+        include_enriched_gpx: bool = False,
     ) -> str:
         """Render two PNG images from a GPX file.
 
         Args:
             gpx_reference: GPX download URL returned by this agent or a local GPX filepath.
             track_color: Matplotlib color for the track line and elevation profile.
+            include_enriched_gpx: Attach clustered refuel and exact camping waypoints as GPX.
         """
         request = GpxImageRequest(gpx_reference=gpx_reference, track_color=track_color)
-        return self._run(lambda: self._service.render_route_gpx_images(request))
+        return self._run(
+            lambda: self._service.render_route_gpx_images(
+                request,
+                include_enriched_gpx=include_enriched_gpx,
+            )
+        )
 
     def _run(self, operation) -> str:
         try:
@@ -136,6 +145,18 @@ def build_plugin(config: AppConfig) -> RoutePlannerPlugin:
             route_client=route_client,
             strava_service=strava_service,
             image_renderer=GpxImageRenderer(route_settings.output_dir),
+            gpx_enricher=GpxRouteEnricher(
+                poi_provider=OverpassPoiProvider(
+                    endpoint_url=config.route_planner_overpass_url,
+                    http_client=httpx.Client(
+                        follow_redirects=True,
+                        headers={"User-Agent": route_settings.geocoder_user_agent},
+                        timeout=config.route_planner_overpass_timeout_seconds,
+                    ),
+                    query_timeout_seconds=config.route_planner_overpass_timeout_seconds,
+                ),
+                output_dir=route_settings.output_dir,
+            ),
             public_base_url=config.public_base_url,
             brouter_web_url=route_settings.brouter_web_url,
         )

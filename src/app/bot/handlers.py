@@ -30,7 +30,12 @@ DEFAULT_GPX_ANALYSIS_PROMPT = (
 
 
 class GpxDocumentAnalyzer(Protocol):
-    def render_route_gpx_images(self, gpx_reference: str, track_color: str = "red") -> str: ...
+    def render_route_gpx_images(
+        self,
+        gpx_reference: str,
+        track_color: str = "red",
+        include_enriched_gpx: bool = False,
+    ) -> str: ...
 
 
 class TelegramHandlers:
@@ -221,7 +226,10 @@ class TelegramHandlers:
     ) -> bool:
         try:
             with artifact_session(session_id):
-                reply = self._gpx_document_analyzer.render_route_gpx_images(str(document.path))
+                reply = self._gpx_document_analyzer.render_route_gpx_images(
+                    str(document.path),
+                    include_enriched_gpx=True,
+                )
         except Exception:
             logger.exception("Failed to process Telegram GPX document")
             await self._reply_text(
@@ -360,6 +368,27 @@ def _format_gpx_analysis_reply(filename: str, reply: str) -> str:
         lines.append(f"- Max elevation: {max_elevation_m}")
 
     lines.append("Map and elevation profile attached.")
+    enriched_gpx = payload.get("enriched_gpx")
+    if isinstance(enriched_gpx, dict):
+        status = enriched_gpx.get("status")
+        if status == "ok":
+            counts = [
+                count
+                for count in (
+                    _format_count(enriched_gpx.get("refuel_waypoints"), "refuel waypoint"),
+                    _format_count(enriched_gpx.get("camping_waypoints"), "camping waypoint"),
+                )
+                if count is not None
+            ]
+            if counts:
+                lines.append(f"Enriched GPX attached ({', '.join(counts)}).")
+            else:
+                lines.append("Enriched GPX attached.")
+            attribution = enriched_gpx.get("attribution")
+            if isinstance(attribution, str) and attribution:
+                lines.append(f"POI data: {attribution}.")
+        elif status == "unavailable":
+            lines.append("Enriched GPX unavailable.")
     return "\n".join(lines)
 
 
@@ -373,3 +402,10 @@ def _format_metric(value: object, unit: str) -> str | None:
             return f"{int(value)} {unit}"
         return f"{value:.1f} {unit}"
     return f"{value:.2f} {unit}"
+
+
+def _format_count(value: object, label: str) -> str | None:
+    if isinstance(value, bool) or not isinstance(value, int):
+        return None
+    suffix = "" if value == 1 else "s"
+    return f"{value} {label}{suffix}"

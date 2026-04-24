@@ -4,7 +4,10 @@ import argparse
 import json
 from typing import get_args
 
+import httpx
+
 from app.config import AppConfig, project_root
+from app.plugins.route_planner.gpx_enrichment import GpxRouteEnricher, OverpassPoiProvider
 from app.plugins.route_planner.gpx_images import GpxImageError, GpxImageRenderer
 from app.plugins.route_planner.models import (
     GpxImageRequest,
@@ -161,10 +164,12 @@ def main(service: RoutePlannerService | None = None) -> int:
 
 def build_service_from_env() -> RoutePlannerService:
     config = AppConfig.from_env()
+    output_dir = project_root() / "output" / "route_planner"
+    user_agent = "pydanticai-tool-agent/0.1"
     route_client = RoutePlannerClient(
         brouter_url=config.route_planner_brouter_url,
-        geocoder_user_agent="pydanticai-tool-agent/0.1",
-        output_dir=project_root() / "output" / "route_planner",
+        geocoder_user_agent=user_agent,
+        output_dir=output_dir,
     )
     strava_service = None
     if config.strava_data_dir:
@@ -172,7 +177,19 @@ def build_service_from_env() -> RoutePlannerService:
     return RoutePlannerService(
         route_client=route_client,
         strava_service=strava_service,
-        image_renderer=GpxImageRenderer(project_root() / "output" / "route_planner"),
+        image_renderer=GpxImageRenderer(output_dir),
+        gpx_enricher=GpxRouteEnricher(
+            poi_provider=OverpassPoiProvider(
+                endpoint_url=config.route_planner_overpass_url,
+                http_client=httpx.Client(
+                    follow_redirects=True,
+                    headers={"User-Agent": user_agent},
+                    timeout=config.route_planner_overpass_timeout_seconds,
+                ),
+                query_timeout_seconds=config.route_planner_overpass_timeout_seconds,
+            ),
+            output_dir=output_dir,
+        ),
         public_base_url=config.public_base_url,
         brouter_web_url=config.route_planner_brouter_web_url,
     )

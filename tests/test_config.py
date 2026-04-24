@@ -41,6 +41,8 @@ def test_load_dotenv_reads_project_file(monkeypatch: pytest.MonkeyPatch, tmp_pat
                 "MORNING_REPORT_LANGUAGE=ru",
                 "BROUTER_URL=http://127.0.0.1:17777/brouter",
                 "BROUTER_WEB_URL=http://127.0.0.1:8080",
+                "ROUTE_PLANNER_OVERPASS_URL=https://overpass.example.test/api/interpreter",
+                "ROUTE_PLANNER_OVERPASS_TIMEOUT_SECONDS=12.5",
                 "STRAVA_CLIENT_ID=strava-client",
                 "STRAVA_CLIENT_SECRET=strava-secret",
                 "STRAVA_REDIRECT_URI=http://localhost/exchange_token",
@@ -74,6 +76,8 @@ def test_load_dotenv_reads_project_file(monkeypatch: pytest.MonkeyPatch, tmp_pat
     monkeypatch.delenv("MORNING_REPORT_LANGUAGE", raising=False)
     monkeypatch.delenv("BROUTER_URL", raising=False)
     monkeypatch.delenv("BROUTER_WEB_URL", raising=False)
+    monkeypatch.delenv("ROUTE_PLANNER_OVERPASS_URL", raising=False)
+    monkeypatch.delenv("ROUTE_PLANNER_OVERPASS_TIMEOUT_SECONDS", raising=False)
     monkeypatch.delenv("STRAVA_CLIENT_ID", raising=False)
     monkeypatch.delenv("STRAVA_CLIENT_SECRET", raising=False)
     monkeypatch.delenv("STRAVA_REDIRECT_URI", raising=False)
@@ -109,6 +113,8 @@ def test_load_dotenv_reads_project_file(monkeypatch: pytest.MonkeyPatch, tmp_pat
     assert config.morning_report_vacation_calendar_id == DEFAULT_MORNING_REPORT_VACATION_CALENDAR_ID
     assert config.route_planner_brouter_url == "http://127.0.0.1:17777/brouter"
     assert config.route_planner_brouter_web_url == "http://127.0.0.1:8080"
+    assert config.route_planner_overpass_url == "https://overpass.example.test/api/interpreter"
+    assert config.route_planner_overpass_timeout_seconds == 12.5
     assert config.strava_client_id == "strava-client"
     assert config.strava_client_secret == "strava-secret"
     assert config.strava_redirect_uri == "http://localhost/exchange_token"
@@ -133,6 +139,8 @@ def test_from_env_uses_openai_compatible_defaults(
     monkeypatch.delenv("MORNING_REPORT_LONGITUDE", raising=False)
     monkeypatch.delenv("USER_TIMEZONE", raising=False)
     monkeypatch.delenv("MORNING_REPORT_LANGUAGE", raising=False)
+    monkeypatch.delenv("ROUTE_PLANNER_OVERPASS_URL", raising=False)
+    monkeypatch.delenv("ROUTE_PLANNER_OVERPASS_TIMEOUT_SECONDS", raising=False)
     monkeypatch.setattr(config_module, "project_root", lambda: tmp_path)
 
     config = AppConfig.from_env()
@@ -152,6 +160,8 @@ def test_from_env_uses_openai_compatible_defaults(
     assert config.caldav_username is None
     assert config.caldav_password is None
     assert config.caldav_insecure_skip_verify is False
+    assert config.route_planner_overpass_url == "https://overpass-api.de/api/interpreter"
+    assert config.route_planner_overpass_timeout_seconds == 25.0
     assert config.missing_morning_report_settings() == (
         "MORNING_REPORT_LATITUDE",
         "MORNING_REPORT_LONGITUDE",

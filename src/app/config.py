@@ -32,6 +32,8 @@ class AppConfig:
     strava_redirect_uri: str
     strava_data_dir: Path
     route_planner_brouter_web_url: str | None = None
+    route_planner_overpass_url: str = "https://overpass-api.de/api/interpreter"
+    route_planner_overpass_timeout_seconds: float = 25.0
     morning_report_latitude: float | None = None
     morning_report_longitude: float | None = None
     user_timezone: str | None = None
@@ -70,6 +72,12 @@ class AppConfig:
                 or str(Path.home() / ".local" / "share" / "pydanticai-tool-agent" / "strava")
             ).expanduser(),
             route_planner_brouter_web_url=_clean(os.getenv("BROUTER_WEB_URL")),
+            route_planner_overpass_url=_clean(os.getenv("ROUTE_PLANNER_OVERPASS_URL"))
+            or "https://overpass-api.de/api/interpreter",
+            route_planner_overpass_timeout_seconds=_parse_optional_float(
+                os.getenv("ROUTE_PLANNER_OVERPASS_TIMEOUT_SECONDS")
+            )
+            or 25.0,
             morning_report_latitude=_parse_optional_float(os.getenv("MORNING_REPORT_LATITUDE")),
             morning_report_longitude=_parse_optional_float(os.getenv("MORNING_REPORT_LONGITUDE")),
             user_timezone=_clean(os.getenv("USER_TIMEZONE")),

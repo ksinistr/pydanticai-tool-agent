@@ -9,6 +9,7 @@ import httpx
 import pytest
 
 from app.plugins.route_planner.cli import main as cli_main
+from app.plugins.route_planner.gpx_enrichment import GpxEnrichmentResult
 from app.plugins.route_planner.gpx_images import (
     GpxImageRenderer,
     GpxImageSummary,
@@ -189,12 +190,34 @@ class FakeGpxImageRenderer:
         )
 
 
+class FakeGpxEnricher:
+    def __init__(self, enriched_path: Path) -> None:
+        self._enriched_path = enriched_path
+        self.last_path: Path | None = None
+
+    def enrich(self, gpx_path: Path) -> GpxEnrichmentResult:
+        self.last_path = gpx_path
+        self._enriched_path.write_text("<gpx/>", encoding="utf-8")
+        return GpxEnrichmentResult(
+            path=self._enriched_path,
+            filename="sample_route_enriched.gpx",
+            refuel_waypoints=2,
+            camping_waypoints=1,
+        )
+
+
 class FakeRoutePlannerRenderService:
     def __init__(self) -> None:
         self.last_request: GpxImageRequest | None = None
+        self.last_include_enriched_gpx: bool | None = None
 
-    def render_route_gpx_images(self, request: GpxImageRequest) -> str:
+    def render_route_gpx_images(
+        self,
+        request: GpxImageRequest,
+        include_enriched_gpx: bool = False,
+    ) -> str:
         self.last_request = request
+        self.last_include_enriched_gpx = include_enriched_gpx
         return '{"ok":true}'
 
 
@@ -496,6 +519,61 @@ def test_route_planner_service_renders_images_from_download_url(
     }
 
 
+def test_route_planner_service_registers_enriched_gpx(monkeypatch, tmp_path: Path) -> None:
+    import app.plugins.route_planner.service as service_module
+
+    gpx_path = tmp_path / "sample_route.gpx"
+    gpx_path.write_text("<gpx/>")
+    renderer = FakeGpxImageRenderer()
+    enricher = FakeGpxEnricher(tmp_path / "sample_route_enriched.gpx")
+    registered: list[tuple[Path, str | None]] = []
+
+    monkeypatch.setattr(
+        service_module.artifact_store,
+        "resolve_download",
+        lambda token: (
+            type("FakeArtifact", (), {"path": gpx_path})() if token == "route-gpx" else None
+        ),
+    )
+
+    def register_file(path, filename=None):
+        registered.append((Path(path), filename))
+        return type(
+            "RegisteredArtifact",
+            (),
+            {
+                "filename": filename or Path(path).name,
+                "download_url": f"/downloads/{filename or Path(path).name}",
+            },
+        )()
+
+    monkeypatch.setattr(service_module.artifact_store, "register_file", register_file)
+
+    service = RoutePlannerService(
+        route_client=FakeRoutePlannerClient(),
+        image_renderer=renderer,
+        gpx_enricher=enricher,
+    )
+
+    payload = json.loads(
+        service.render_route_gpx_images(
+            GpxImageRequest(gpx_reference="/downloads/route-gpx"),
+            include_enriched_gpx=True,
+        )
+    )
+
+    assert enricher.last_path == gpx_path
+    assert registered[-1] == (tmp_path / "sample_route_enriched.gpx", "sample_route_enriched.gpx")
+    assert payload["enriched_gpx"] == {
+        "status": "ok",
+        "filename": "sample_route_enriched.gpx",
+        "download_url": "/downloads/sample_route_enriched.gpx",
+        "refuel_waypoints": 2,
+        "camping_waypoints": 1,
+        "attribution": "OpenStreetMap contributors",
+    }
+
+
 def test_route_planner_plugin_builds_gpx_image_request() -> None:
     service = FakeRoutePlannerRenderService()
     plugin = RoutePlannerPlugin(service)
@@ -507,6 +585,25 @@ def test_route_planner_plugin_builds_gpx_image_request() -> None:
         gpx_reference="/downloads/example",
         track_color="crimson",
     )
+    assert service.last_include_enriched_gpx is False
+
+
+def test_route_planner_plugin_forwards_enriched_gpx_flag() -> None:
+    service = FakeRoutePlannerRenderService()
+    plugin = RoutePlannerPlugin(service)
+
+    result = plugin.render_route_gpx_images(
+        "/downloads/example",
+        track_color="crimson",
+        include_enriched_gpx=True,
+    )
+
+    assert result == '{"ok":true}'
+    assert service.last_request == GpxImageRequest(
+        gpx_reference="/downloads/example",
+        track_color="crimson",
+    )
+    assert service.last_include_enriched_gpx is True
 
 
 def test_gpx_image_renderer_prefers_brouter_filtered_metrics(monkeypatch, tmp_path: Path) -> None:

@@ -41,6 +41,8 @@ make install
 - `MORNING_REPORT_HOLIDAYS_CALENDAR_ID` and `MORNING_REPORT_VACATION_CALENDAR_ID` if you want to override the default holiday and vacation calendars used by `/morning_report`
 - The same `MORNING_REPORT_*` and `USER_TIMEZONE` values are also used by `/daily_training_advice`; no extra variables are required
 - `BROUTER_URL` if you enable the route planner plugin
+- `ROUTE_PLANNER_OVERPASS_URL` if you want to override the Overpass endpoint used for enriched GPX POIs
+- `ROUTE_PLANNER_OVERPASS_TIMEOUT_SECONDS` if you want to override the Overpass query timeout
 - `STRAVA_CLIENT_ID` and `STRAVA_CLIENT_SECRET` if you want route planner to avoid known roads using Strava history
 
 ## Run
@@ -103,6 +105,7 @@ uv run route-planner-tool strava-sync
 
 For round-trip routing, resolve place names to coordinates first, for example with `uv run open-meteo-tool search --query "Paphos"`.
 The image renderer can consume a local GPX path or a `/downloads/...` GPX artifact URL returned by the agent.
+For plain Telegram GPX uploads, route images are accompanied by an enriched GPX with clustered cycling resupply waypoints and exact camping-site waypoints from OpenStreetMap data via Overpass.
 
 ## Extend With More Tools
 

@@ -322,17 +322,25 @@ def test_handle_document_rejects_non_gpx_files(tmp_path: Path) -> None:
 def test_handle_document_without_caption_uses_gpx_analyzer(tmp_path: Path) -> None:
     map_path = tmp_path / "route_map.jpg"
     profile_path = tmp_path / "route_profile.png"
+    enriched_path = tmp_path / "route_enriched.gpx"
     map_path.write_bytes(b"jpg")
     profile_path.write_bytes(b"png")
+    enriched_path.write_text("<gpx/>", encoding="utf-8")
 
     class FakeGpxAnalyzer:
         def __init__(self) -> None:
-            self.calls: list[tuple[str, str]] = []
+            self.calls: list[tuple[str, str, bool]] = []
 
-        def render_route_gpx_images(self, gpx_reference: str, track_color: str = "red") -> str:
-            self.calls.append((gpx_reference, track_color))
+        def render_route_gpx_images(
+            self,
+            gpx_reference: str,
+            track_color: str = "red",
+            include_enriched_gpx: bool = False,
+        ) -> str:
+            self.calls.append((gpx_reference, track_color, include_enriched_gpx))
             artifact_store.register_file(map_path, map_path.name)
             artifact_store.register_file(profile_path, profile_path.name)
+            artifact_store.register_file(enriched_path, enriched_path.name)
             return json.dumps(
                 {
                     "source": {"filename": "route.gpx"},
@@ -342,6 +350,12 @@ def test_handle_document_without_caption_uses_gpx_analyzer(tmp_path: Path) -> No
                         "descent_m": 1142.0,
                         "min_elevation_m": 7.8,
                         "max_elevation_m": 496.0,
+                    },
+                    "enriched_gpx": {
+                        "status": "ok",
+                        "refuel_waypoints": 2,
+                        "camping_waypoints": 1,
+                        "attribution": "OpenStreetMap contributors",
                     },
                 }
             )
@@ -375,14 +389,18 @@ def test_handle_document_without_caption_uses_gpx_analyzer(tmp_path: Path) -> No
     assert len(analyzer.calls) == 1
     assert analyzer.calls[0][0].endswith(".gpx")
     assert analyzer.calls[0][1] == "red"
+    assert analyzer.calls[0][2] is True
     reply = message.reply_text.await_args.args[0]
     assert "GPX analysis for" in reply
     assert "Distance: 49.91 km" in reply
     assert "Ascent: 1168 m" in reply
     assert "Elevation: 7.8 m to 496 m" in reply
     assert "Map and elevation profile attached." in reply
+    assert "Enriched GPX attached (2 refuel waypoints, 1 camping waypoint)." in reply
+    assert "POI data: OpenStreetMap contributors." in reply
     assert message.reply_photo.await_count == 2
-    message.reply_document.assert_not_awaited()
+    message.reply_document.assert_awaited_once()
+    assert message.reply_document.await_args.kwargs["filename"] == "route_enriched.gpx"
 
 
 def _document(filename: str, payload: str) -> SimpleNamespace:
