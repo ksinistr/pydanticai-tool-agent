@@ -646,6 +646,35 @@ def test_route_planner_client_uses_hiking_mountain_brouter_profile(tmp_path) -> 
     route_client.close()
 
 
+def test_route_planner_client_includes_profile_in_exported_gpx_filename(tmp_path: Path) -> None:
+    requested_profiles: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requested_profiles.append(request.url.params["profile"])
+        return httpx.Response(200, text="<gpx/>")
+
+    http_client = httpx.Client(transport=httpx.MockTransport(handler))
+    route_client = RoutePlannerClient(
+        brouter_url="http://127.0.0.1:17777/brouter",
+        geocoder_user_agent="pydanticai-tool-agent/0.1",
+        output_dir=tmp_path,
+        http_client=http_client,
+    )
+
+    result = route_client.export_route_gpx(
+        waypoints=[(34.775, 32.424), (34.684, 33.038)],
+        route_name="Coast Ride",
+        profile="hiking-mountain",
+    )
+
+    assert requested_profiles == ["hiking-mountain"]
+    assert result["filename"].startswith("Coast_Ride_hiking-mountain_")
+    assert result["filename"].endswith(".gpx")
+    assert Path(result["filepath"]).name == result["filename"]
+    assert Path(result["filepath"]).read_text() == "<gpx/>"
+    route_client.close()
+
+
 def test_route_planner_client_prefers_english_nominatim_names(tmp_path) -> None:
     seen_accept_language: list[str] = []
     seen_namedetails: list[str] = []
@@ -708,6 +737,26 @@ def test_route_planner_client_builds_brouter_web_url(tmp_path) -> None:
     route_client.close()
 
 
+def test_route_planner_client_maps_road_profile_to_fastbike_lowtraffic(tmp_path) -> None:
+    route_client = RoutePlannerClient(
+        brouter_url="http://127.0.0.1:17777/brouter",
+        geocoder_user_agent="pydanticai-tool-agent/0.1",
+        output_dir=tmp_path,
+    )
+
+    url = route_client.build_brouter_web_url(
+        waypoints=[(34.775, 32.424), (34.684, 33.038)],
+        bike_profile="road",
+        brouter_web_url="https://brouter-web.example.test/",
+    )
+
+    assert (
+        url == "https://brouter-web.example.test/#map=14/34.7295/32.7310/standard"
+        "&lonlats=32.424000,34.775000;33.038000,34.684000&profile=fastbike-lowtraffic"
+    )
+    route_client.close()
+
+
 def test_route_planner_cli_builds_round_trip_coordinate_request(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -745,6 +794,33 @@ def test_route_planner_cli_builds_round_trip_coordinate_request(
         max_elevation_m=800,
         profile="gravel",
         avoid_known_roads=True,
+    )
+
+
+def test_route_planner_cli_point_to_point_help_lists_allowed_profiles(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["route-planner-tool", "point-to-point", "--help"],
+    )
+
+    with pytest.raises(SystemExit) as exc:
+        cli_main()
+
+    output = capsys.readouterr()
+    help_text = " ".join(output.out.split())
+
+    assert exc.value.code == 0
+    assert (
+        "--profile {road,gravel,trekking,mountain,hiking-mountain,mtb,safety,shortest}"
+        in help_text
+    )
+    assert (
+        "Allowed values: road, gravel, trekking, mountain, hiking-mountain, mtb, safety, shortest."
+        in help_text
     )
 
 

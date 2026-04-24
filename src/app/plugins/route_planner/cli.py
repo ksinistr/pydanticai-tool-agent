@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from typing import get_args
 
 from app.config import AppConfig, project_root
 from app.plugins.route_planner.gpx_images import GpxImageError, GpxImageRenderer
@@ -9,11 +10,18 @@ from app.plugins.route_planner.models import (
     GpxImageRequest,
     PointToPointRouteRequest,
     RoundTripRouteRequest,
+    RouteProfile,
     StravaSettings,
 )
 from app.plugins.route_planner.routing import RoutePlannerClient, RoutePlannerError
 from app.plugins.route_planner.service import RoutePlannerService
 from app.plugins.route_planner.strava import StravaError, StravaService
+
+ROUTE_PROFILE_CHOICES = get_args(RouteProfile)
+ROUTE_PROFILE_HELP = (
+    f"Routing profile. Allowed values: {', '.join(ROUTE_PROFILE_CHOICES)}. "
+    "Default: %(default)s."
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -23,7 +31,12 @@ def build_parser() -> argparse.ArgumentParser:
     point_to_point = subparsers.add_parser("point-to-point")
     point_to_point.add_argument("--start-location", required=True)
     point_to_point.add_argument("--end-location", required=True)
-    point_to_point.add_argument("--profile", default="gravel")
+    point_to_point.add_argument(
+        "--profile",
+        default="gravel",
+        choices=ROUTE_PROFILE_CHOICES,
+        help=ROUTE_PROFILE_HELP,
+    )
     point_to_point.add_argument("--route-name")
 
     round_trip = subparsers.add_parser("round-trip")
@@ -43,7 +56,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     round_trip.add_argument("--max-total-km", type=float, required=True)
     round_trip.add_argument("--max-elevation-m", type=float)
-    round_trip.add_argument("--profile", default="gravel")
+    round_trip.add_argument(
+        "--profile",
+        default="gravel",
+        choices=ROUTE_PROFILE_CHOICES,
+        help=ROUTE_PROFILE_HELP,
+    )
     round_trip.add_argument("--avoid-known-roads", action="store_true")
 
     render_images = subparsers.add_parser("render-images")

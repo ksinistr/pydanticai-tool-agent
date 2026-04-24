@@ -9,7 +9,7 @@ import httpx
 
 
 BROUTER_PROFILES = {
-    "road": "fastbike",
+    "road": "fastbike-lowtraffic",
     "gravel": "quaelnix-gravel",
     "trekking": "trekking",
     "mountain": "mtb",
@@ -147,8 +147,11 @@ class RoutePlannerClient:
         safe_name = "".join(
             char if char.isalnum() or char in "-_" else "_" for char in route_name
         ).strip("_")
+        safe_profile = "".join(
+            char if char.isalnum() or char in "-_" else "_" for char in profile
+        ).strip("_")
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"{safe_name or 'route'}_{timestamp}.gpx"
+        filename = f"{safe_name or 'route'}_{safe_profile or 'profile'}_{timestamp}.gpx"
         filepath = self._output_dir / filename
         lonlats = "|".join(f"{lon},{lat}" for lat, lon in waypoints)
         profile_name = BROUTER_PROFILES.get(profile, "trekking")
